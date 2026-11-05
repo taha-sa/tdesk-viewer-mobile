@@ -1,0 +1,175 @@
+{
+  "expo": {
+    "name": "T-Desk Viewer",
+    "slug": "tdesk-viewer",
+    "version": "1.0.0",
+    "scheme": "tdeskviewer",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#14352B"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tdesk.viewer",
+      "buildNumber": "1",
+      "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": false,
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "T-Desk Viewer belgeleri",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "com.adobe.pdf",
+              "org.openxmlformats.wordprocessingml.document",
+              "org.openxmlformats.spreadsheetml.sheet",
+              "org.openxmlformats.presentationml.presentation",
+              "org.idpf.epub-container",
+              "public.comma-separated-values-text",
+              "net.daringfireball.markdown",
+              "public.plain-text",
+              "public.source-code",
+              "public.json",
+              "public.xml",
+              "public.zip-archive",
+              "public.image"
+            ]
+          }
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#14352B"
+      },
+      "package": "com.tdesk.viewer",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "application/pdf"
+            },
+            {
+              "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            },
+            {
+              "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            },
+            {
+              "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            },
+            {
+              "mimeType": "application/vnd.ms-excel"
+            },
+            {
+              "mimeType": "application/epub+zip"
+            },
+            {
+              "mimeType": "text/csv"
+            },
+            {
+              "mimeType": "text/comma-separated-values"
+            },
+            {
+              "mimeType": "application/csv"
+            },
+            {
+              "mimeType": "text/markdown"
+            },
+            {
+              "mimeType": "text/x-markdown"
+            },
+            {
+              "mimeType": "text/plain"
+            },
+            {
+              "mimeType": "text/*"
+            },
+            {
+              "mimeType": "application/json"
+            },
+            {
+              "mimeType": "application/xml"
+            },
+            {
+              "mimeType": "application/x-yaml"
+            },
+            {
+              "mimeType": "application/yaml"
+            },
+            {
+              "mimeType": "application/zip"
+            },
+            {
+              "mimeType": "application/x-zip-compressed"
+            },
+            {
+              "mimeType": "image/*"
+            },
+            {
+              "mimeType": "*/*"
+            }
+          ]
+        },
+        {
+          "action": "VIEW",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "file"
+            },
+            {
+              "scheme": "content"
+            }
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "T-Desk Viewer, uygulama kilidini açmak için Face ID kullanır."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "T-Desk Viewer, PDF oluşturmak için seçtiğiniz fotoğraflara erişir.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "be71241b-a07d-41b2-b900-1ad21470969f"
+      }
+    },
+    "owner": "taha311"
+  }
+}

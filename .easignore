@@ -1,0 +1,25 @@
+# EAS arşivine girmeyecekler (.gitignore'a ek olarak; .easignore varsa .gitignore yerine geçer)
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+android/
+ios/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+graphify-out/
+
+# Yan/eski betikler (varsa)
+fix.py
+update.js
+update_pdf.js
+test_pptx.xml

@@ -1,0 +1,7 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true
+  },
+  "exclude": ["node_modules", "dist", "update.js", "update_pdf.js", "fix.py"]
+}

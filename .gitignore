@@ -1,0 +1,36 @@
+# Bağımlılıklar
+node_modules/
+
+# Expo / derleme çıktıları
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+
+# Yerel derleme ve imzalama
+android/
+ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Ortam ve sırlar
+.env
+.env.*
+!.env.example
+
+# Günlükler / sistem dosyaları
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+.DS_Store
+Thumbs.db
+
+# Editör
+.idea/
+.vscode/
