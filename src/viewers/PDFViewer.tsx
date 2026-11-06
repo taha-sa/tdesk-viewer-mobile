@@ -29,7 +29,7 @@ function getPdfComponent(): PdfComponent | null {
 interface PDFViewerProps { file: FileInfo; appTheme?: AppThemeMode; }
 
 const MIN_SCALE = 1;
-const MAX_SCALE = 5; // yüksek yakınlaştırmada sayfa parçaları (tile) çok büyür; panlayınca yeniden çizim bulanıklığı artar
+const MAX_SCALE = 8;
 const SAVE_DEBOUNCE_MS = 1000;
 const HIT = { top: 6, bottom: 6, left: 6, right: 6 };
 
