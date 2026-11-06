@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Share, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { searchScript, parseSearchMessage } from '../utils/webSearch';
+import { WebSearchBar } from './WebSearchBar';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import * as Clipboard from 'expo-clipboard';
 import { marked } from 'marked';
@@ -112,6 +114,11 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
   const [failed, setFailed] = useState<boolean>(false);
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [toast, setToast] = useState<string>('');
+  const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState<string>('');
+  const [searchCount, setSearchCount] = useState<number>(0);
+  const [searchIndex, setSearchIndex] = useState<number>(-1);
+  const searchRef = useRef<string>('');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const content = file.content || '';
@@ -235,6 +242,28 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
     toastTimer.current = setTimeout(() => setToast(''), 1800);
   }, []);
 
+  // Arama: yazdıkça (gecikmeli) belgede işaretle; kapatınca temizle.
+  useEffect(() => {
+    searchRef.current = searchOpen ? searchText : '';
+    const h = setTimeout(() => {
+      webRef.current?.injectJavaScript(searchScript('find', searchOpen ? searchText.trim() : ''));
+    }, 250);
+    return () => clearTimeout(h);
+  }, [searchOpen, searchText]);
+
+  const searchNext = useCallback(() => { webRef.current?.injectJavaScript(searchScript('next')); }, []);
+  const searchPrev = useCallback(() => { webRef.current?.injectJavaScript(searchScript('prev')); }, []);
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchText('');
+    setSearchCount(0);
+    setSearchIndex(-1);
+  }, []);
+  const onWebMessage = useCallback((e: { nativeEvent: { data: string } }) => {
+    const st = parseSearchMessage(e.nativeEvent.data);
+    if (st) { setSearchCount(st.count); setSearchIndex(st.index); }
+  }, []);
+
   const changeFont = useCallback((delta: number) => {
     setFontSize((f) => {
       const next = Math.max(MIN_FONT, Math.min(MAX_FONT, f + delta));
@@ -296,10 +325,24 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
         </View>
         {toast ? <Text style={[styles.toast, { color: c.textSecondary }]} accessibilityLiveRegion="polite">{toast}</Text> : <View style={{ flex: 1 }} />}
         <View style={styles.toolGroup}>
+          {barBtn('Belgede ara', 'search', null, () => setSearchOpen((o) => !o))}
           {barBtn('Metni kopyala', 'copy-outline', null, handleCopy)}
           {barBtn('Metni paylaş', 'share-outline', null, handleShare)}
         </View>
       </View>
+
+      {searchOpen ? (
+        <WebSearchBar
+          colors={c}
+          value={searchText}
+          onChange={setSearchText}
+          count={searchCount}
+          index={searchIndex}
+          onNext={searchNext}
+          onPrev={searchPrev}
+          onClose={closeSearch}
+        />
+      ) : null}
 
       {failed ? (
         <View style={styles.center}>
@@ -331,8 +374,10 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
             allowFileAccessFromFileURLs={false}
             mixedContentMode="never"
             onShouldStartLoadWithRequest={onShouldStart}
+            onMessage={onWebMessage}
             onLoadEnd={() => {
               setLoading(false);
+              if (searchRef.current.trim()) webRef.current?.injectJavaScript(searchScript('find', searchRef.current.trim()));
               if (fontRef.current !== initialFont) webRef.current?.injectJavaScript(`document.body.style.fontSize='${fontRef.current}px';true;`);
             }}
             onError={() => { setLoading(false); setFailed(true); }}

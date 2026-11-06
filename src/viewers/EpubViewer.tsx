@@ -4,6 +4,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
+import { searchScript, parseSearchMessage } from '../utils/webSearch';
+import { WebSearchBar } from './WebSearchBar';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import JSZip from 'jszip';
 import * as FileSystem from 'expo-file-system';
@@ -103,6 +105,11 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
   const [fontSize, setFontSize] = useState<number>(18);
   const [readerTheme, setReaderTheme] = useState<ReaderTheme>('sepia');
   const [showToc, setShowToc] = useState<boolean>(false);
+  const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState<string>('');
+  const [searchCount, setSearchCount] = useState<number>(0);
+  const [searchIndex, setSearchIndex] = useState<number>(-1);
+  const searchRef = useRef<string>('');
 
   const palette = PALETTES[readerTheme];
   const chapterHtml = chapterData && chapterData.idx === chapterIdx ? chapterData.html : null;
@@ -265,9 +272,24 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
     return false;
   }, [goToChapter]);
 
+  // Arama (geçerli bölümde): yazdıkça işaretle, bölüm değişince/yüklenince yeniden uygula.
+  useEffect(() => {
+    searchRef.current = searchOpen ? searchText.trim() : '';
+    const h = setTimeout(() => { webRef.current?.injectJavaScript(searchScript('find', searchRef.current)); }, 250);
+    return () => clearTimeout(h);
+  }, [searchOpen, searchText]);
+  const searchNext = useCallback(() => { webRef.current?.injectJavaScript(searchScript('next')); }, []);
+  const searchPrev = useCallback(() => { webRef.current?.injectJavaScript(searchScript('prev')); }, []);
+  const closeSearch = useCallback(() => { setSearchOpen(false); setSearchText(''); setSearchCount(0); setSearchIndex(-1); }, []);
+  const onWebMessage = useCallback((e: { nativeEvent: { data: string } }) => {
+    const st = parseSearchMessage(e.nativeEvent.data);
+    if (st) { setSearchCount(st.count); setSearchIndex(st.index); }
+  }, []);
+
   const onPageLoaded = useCallback(() => {
     const web = webRef.current;
     if (!web) return;
+    if (searchRef.current) web.injectJavaScript(searchScript('find', searchRef.current));
     web.injectJavaScript(themeScript(paletteRef.current, fontRef.current));
     const frag = pendingFragment.current;
     if (frag) {
@@ -355,12 +377,27 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
           </Text>
         </View>
         <View style={styles.toolGroup}>
+          {toolBtn('Bölümde ara', () => setSearchOpen((o) => !o), <Ionicons name="search" size={20} color={palette.text} />)}
           {toolBtn('İçindekiler', () => setShowToc(true), <Ionicons name="list" size={20} color={palette.text} />)}
           {toolBtn('Yazıyı küçült', () => setFontSize((f) => Math.max(MIN_FONT, f - 2)), <Text style={[styles.toolBtnText, { color: palette.text }]}>A-</Text>, fontSize <= MIN_FONT)}
           {toolBtn('Yazıyı büyüt', () => setFontSize((f) => Math.min(MAX_FONT, f + 2)), <Text style={[styles.toolBtnText, { color: palette.text }]}>A+</Text>, fontSize >= MAX_FONT)}
           {toolBtn(`Okuma teması: ${THEME_LABEL[readerTheme]}. Değiştir`, cycleTheme, <Ionicons name={THEME_ICON[readerTheme]} size={20} color={palette.text} />)}
         </View>
       </View>
+
+      {searchOpen ? (
+        <WebSearchBar
+          colors={{ background: palette.bg, card: palette.card, border: palette.border, text: palette.text, textMuted: palette.muted, primary: ACCENT }}
+          value={searchText}
+          onChange={setSearchText}
+          count={searchCount}
+          index={searchIndex}
+          onNext={searchNext}
+          onPrev={searchPrev}
+          onClose={closeSearch}
+          scopeLabel="bu bölümde"
+        />
+      ) : null}
 
       <View style={[styles.progressTrack, { backgroundColor: palette.border }]}>
         <View style={[styles.progressFill, { width: `${Math.round(((chapterIdx + 1) / Math.max(1, total)) * 100)}%` }]} />
@@ -406,6 +443,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
               </View>
             )}
             onShouldStartLoadWithRequest={onShouldStart}
+            onMessage={onWebMessage}
             onLoadEnd={onPageLoaded}
             onError={() => setChapterError('Bölüm görüntülenemedi.')}
             onHttpError={() => setChapterError('Bölüm görüntülenemedi.')}
