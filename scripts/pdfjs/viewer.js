@@ -68,6 +68,23 @@
     clearMarkRefs(p.num);
   }
 
+  // Yeniden çizim gerekiyor ama eski görüntü yeni hazır olana kadar KALIR (beyaz flaş olmasın).
+  // stretch: yakınlaştırmada eski canvas yeni boyuta CSS ile gerilir (kısa süre bulanık, ama beyaz değil).
+  function markStale(p, stretch) {
+    if (!p.visible) { release(p); return; }
+    p.token++;              // sürmekte olan çizimi iptal et
+    p.rendering = false;
+    p.rendered = false;
+    if (p.layer && p.layer.parentNode) p.layer.parentNode.removeChild(p.layer); // metin katmanı ölçeğe bağlı; yenisi gelecek
+    p.layer = null; p.divs = []; p.strs = [];
+    clearMarkRefs(p.num);
+    if (stretch && p.canvas) {
+      var sz = pageCssSize(p);
+      p.canvas.style.width = sz.w + 'px';
+      p.canvas.style.height = sz.h + 'px';
+    }
+  }
+
   var active = 0, MAX_ACTIVE = 2;
   function pump() {
     if (!S.doc) return;
@@ -124,7 +141,7 @@
   }
 
   function relayoutAll(anchor) {
-    S.pages.forEach(function (p) { sizeWrapper(p); if (p.rendered || p.rendering) release(p); });
+    S.pages.forEach(function (p) { sizeWrapper(p); if (p.rendered || p.rendering || p.canvas) markStale(p, true); });
     if (anchor) restoreAnchor(anchor);
     if (io) { io.disconnect(); observe(); } else pump();
   }
@@ -170,7 +187,7 @@
         var q = clamp(window.visualViewport.scale || 1, 1, 4);
         if (Math.abs(q - S.quality) > 0.25) {
           S.quality = q;
-          S.pages.forEach(function (p) { if (p.rendered) release(p); });
+          S.pages.forEach(function (p) { if (p.rendered) markStale(p, false); });
           pump();
         }
       }, 250);
