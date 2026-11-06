@@ -340,8 +340,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </View>
 
         <View style={styles.aboutBox} accessible accessibilityLabel={`${APP_DISPLAY_NAME}, sürüm ${getAppVersion()}`}>
-          <View style={styles.aboutLogoSquircle}>
-            <Text style={styles.aboutLogoText}>T/</Text>
+          <View style={[styles.aboutLogoSquircle, { backgroundColor: currentColors.primary }]}>
+            <Text style={[styles.aboutLogoText, { color: currentColors.onPrimary }]}>T/</Text>
           </View>
           <Text style={[styles.brandName, { color: currentColors.primary }]}>{APP_DISPLAY_NAME}</Text>
           <Text style={[styles.brandVersion, { color: currentColors.textSecondary }]}>Sürüm {getAppVersion()}</Text>

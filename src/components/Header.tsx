@@ -32,8 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.topRow}>
         <View style={styles.brandContainer} accessible accessibilityRole="header" accessibilityLabel={`T-Desk. ${subtitle}`}>
           {/* T/ Orijinal Logo */}
-          <View style={[styles.logoSquircle, { backgroundColor: '#1E4D40', borderColor: currentColors.primary }]}>
-            <Text style={styles.logoText}>T/</Text>
+          <View style={[styles.logoSquircle, { backgroundColor: currentColors.primary, borderColor: currentColors.primary }]}>
+            <Text style={[styles.logoText, { color: currentColors.onPrimary }]}>T/</Text>
           </View>
           <View style={styles.brandText}>
             <Text style={[styles.title, { color: currentColors.text }]}>T-DESK</Text>

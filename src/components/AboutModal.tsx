@@ -53,8 +53,8 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
           accessibilityViewIsModal
         >
           <View style={styles.header}>
-            <View style={[styles.logoSquircle, { backgroundColor: '#1E4D40', borderColor: currentColors.primary }]}>
-              <Text style={styles.logoText}>T/</Text>
+            <View style={[styles.logoSquircle, { backgroundColor: currentColors.primary, borderColor: currentColors.primary }]}>
+              <Text style={[styles.logoText, { color: currentColors.onPrimary }]}>T/</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: currentColors.text }]} accessibilityRole="header">{APP_DISPLAY_NAME}</Text>
