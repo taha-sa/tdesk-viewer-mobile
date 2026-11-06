@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Alert, BackHandler } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import { FileInfo, AppThemeMode, SyntaxTheme } from '../types';
@@ -58,6 +58,24 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
   const [sharing, setSharing] = useState<boolean>(false);
   const mountedRef = useRef(true);
   const sharingRef = useRef(false);
+  // Kaydedilmemiş düzenleme (Kod/Tablo görüntüleyicileri bildirir): çıkarken onay istenir.
+  const dirtyRef = useRef(false);
+  const handleDirtyChange = useCallback((d: boolean) => { dirtyRef.current = d; }, []);
+  const confirmedBack = useCallback(() => {
+    if (!dirtyRef.current) { onBack(); return; }
+    Alert.alert('Kaydedilmemiş değişiklikler', 'Çıkarsanız yaptığınız değişiklikler silinecek.', [
+      { text: 'Kal', style: 'cancel' },
+      { text: 'Sil ve çık', style: 'destructive', onPress: () => { dirtyRef.current = false; onBack(); } },
+    ]);
+  }, [onBack]);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!dirtyRef.current) return false; // normal akış (App kapatır)
+      confirmedBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [confirmedBack]);
 
   const currentColors = Colors[appTheme] || Colors.dark;
   const currentFile = gate.kind === 'ready' ? gate.file : initialFile;
@@ -230,11 +248,11 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
           </Suspense>
         );
       case 'code':
-        return <CodeViewer key={viewerKey} file={file} appTheme={appTheme} codeTheme={defaultCodeTheme} />;
+        return <CodeViewer key={viewerKey} file={file} appTheme={appTheme} codeTheme={defaultCodeTheme} onDirtyChange={handleDirtyChange} />;
       case 'markdown':
         return <MarkdownViewer key={viewerKey} file={file} appTheme={appTheme} />;
       case 'spreadsheet':
-        return <SpreadsheetViewer key={viewerKey} file={file} appTheme={appTheme} />;
+        return <SpreadsheetViewer key={viewerKey} file={file} appTheme={appTheme} onDirtyChange={handleDirtyChange} />;
       case 'docx':
         return <DocxViewer key={viewerKey} file={file} appTheme={appTheme} />;
       case 'pptx':
@@ -275,7 +293,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
       <View style={[styles.header, { backgroundColor: currentColors.surface, borderBottomColor: currentColors.border }]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={onBack}
+          onPress={confirmedBack}
           hitSlop={HIT_SLOP}
           accessibilityRole="button"
           accessibilityLabel={fromArchive ? 'Arşive dön' : 'Geri'}

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
+import { writeFileAtomic } from '../utils/atomicWrite';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
@@ -35,6 +36,8 @@ import {
 import { LinesView, LinesViewHandle, MONO_FONT, onColor, SearchRow, ToolButton, useLineSearch } from './LinesView';
 
 interface CodeViewerProps {
+  /** Kaydedilmemiş düzenleme var/yok bildirimi (üst ekran çıkışta onay isteyebilsin). */
+  onDirtyChange?: (dirty: boolean) => void;
   file: FileInfo;
   appTheme: AppThemeMode;
   codeTheme?: SyntaxTheme;
@@ -99,6 +102,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   appTheme,
   codeTheme = 'vscode-dark',
   showLineNumbers = true,
+  onDirtyChange,
 }) => {
   const [status, setStatus] = useState<Status>('loading');
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -188,6 +192,8 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   const tokenColor = useCallback((type: string) => resolveTokenColor(theme, type), [theme]);
 
   const dirty = isEditing && draft !== text;
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
   const canEdit = status === 'ready' && !virtual && text.length <= MAX_EDIT_CHARS;
   const editDisabledReason = virtual
     ? 'Arşiv içindeki veya geçici dosyalar düzenlenemez.'
@@ -289,9 +295,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     }
     setSaving(true);
     try {
-      await FileSystem.writeAsStringAsync(file.uri, bytesToBase64(enc.bytes), {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      await writeFileAtomic(file.uri, bytesToBase64(enc.bytes), 'base64');
       if (!mountedRef.current) return;
       setText(draft);
       setMeta({ ...meta, encoding, hadBom: withBom, hadReplacementChars: false, byteLength: enc.bytes.length });

@@ -332,8 +332,9 @@ function timestampLabel(now = Date.now()): string {
 
 /** URI'den kullanıcıya gösterilecek ad türetir (Türkçe karakter korunur; anlamsız provider kimliği ise Belge_<tarih>). */
 export function deriveDisplayName(rawUri: string, now = Date.now()): string {
-  const decoded = safeDecodeURI(String(rawUri ?? '').trim());
-  let seg = getBaseName(decoded.split(/[?#]/)[0]);
+  // Önce ham adresteki gerçek ?/# ayırıcıları kesilir, SONRA çözülür; yoksa "Plan%20%232.pdf" → "Plan" olurdu.
+  const decoded = safeDecodeURI(String(rawUri ?? '').trim().split(/[?#]/)[0]);
+  let seg = getBaseName(decoded);
   const colon = seg.lastIndexOf(':');
   if (colon >= 0) seg = seg.slice(colon + 1);
   seg = sanitizeDisplayName(seg);
@@ -578,8 +579,9 @@ export class FileService {
     try {
       json = await AsyncStorage.getItem(STORAGE_KEYS.RECENTS);
     } catch (e) {
+      // Boş liste DÖNMEYİZ: çağıranlar bunu "kayıt yok" sanıp üzerine yazar ve favori/etiketleri siler.
       logError('Son dosyalar okunamadı.', e);
-      return [];
+      throw e;
     }
     if (!json) return [];
     let parsed: unknown;
@@ -838,6 +840,10 @@ export class FileService {
         await FileSystem.deleteAsync(full, { idempotent: true });
         deletedUris.add(full);
       }
+      // Sistem/diğer modüllerin bıraktığı geçici alt dizinler (paylaşım kopyaları, belge seçici, yazdırma çıktıları)
+      for (const sub of ['share/', 'DocumentPicker/', 'Print/']) {
+        try { await FileSystem.deleteAsync(cacheDir + sub, { idempotent: true }); } catch { /* yoksa sorun değil */ }
+      }
       const remaining = list.filter(f => !deletedUris.has(f.uri));
       await this.writeRecents(remaining);
     });
@@ -1071,7 +1077,12 @@ export class FileService {
   // ----- Paylaşım / yazdırma -----
 
   /** Paylaşım penceresini açar. Başarıda true; başarısızlıkta kullanıcıya uyarı gösterip false döner. */
+  private static sharing = false;
+
   public static async shareFile(file: FileInfo): Promise<boolean> {
+    // Çift dokunuş: ikinci çağrı expo-sharing'de "SharingInProgress" hatası verip yanlış uyarı çıkarıyordu.
+    if (this.sharing) return false;
+    this.sharing = true;
     try {
       if (!(await Sharing.isAvailableAsync())) {
         Alert.alert('Paylaşım kullanılamıyor', 'Bu cihazda paylaşım desteklenmiyor.');
@@ -1083,31 +1094,40 @@ export class FileService {
       const dialogTitle = file.name ? `Paylaş: ${file.name}` : 'Paylaş';
       let uri = file.uri;
 
-      const needsTemp = !!file.isSample || isVirtualUri(uri) || uri.startsWith('content://');
-      if (needsTemp) {
-        if (!cacheDir) {
-          Alert.alert('Paylaşılamadı', 'Geçici dizine erişilemiyor.');
-          return false;
-        }
-        const tempPath = `${cacheDir}tdesk_share_${Date.now()}_${toCacheFileName(file.name || 'belge')}`;
-        if (uri.startsWith('content://') && !file.isSample) {
-          await FileSystem.copyAsync({ from: uri, to: tempPath });
-        } else if (typeof file.content === 'string') {
-          await FileSystem.writeAsStringAsync(tempPath, file.content, { encoding: FileSystem.EncodingType.UTF8 });
-        } else if (typeof file.base64 === 'string') {
-          await FileSystem.writeAsStringAsync(tempPath, file.base64, { encoding: FileSystem.EncodingType.Base64 });
-        } else {
-          Alert.alert('Paylaşılamadı', 'Bu dosya tek başına paylaşılamaz.');
-          return false;
-        }
-        uri = tempPath;
+      // Alıcı uygulamanın "tdesk_<sayı>_..." öneki yerine gerçek dosya adını görmesi için her zaman
+      // cache/share/<zaman>/<gerçek ad> altına bir kopya paylaşılır (sanal/örnek/content:// dosyalar zaten kopya ister).
+      if (!cacheDir) {
+        Alert.alert('Paylaşılamadı', 'Geçici dizine erişilemiyor.');
+        return false;
       }
+      const shareRoot = `${cacheDir}share/`;
+      try { await FileSystem.deleteAsync(shareRoot, { idempotent: true }); } catch { /* eski paylaşım kopyaları */ }
+      const dir = `${shareRoot}${Date.now()}/`;
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+      let shareName = String(file.originalName || file.name || 'belge').replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_').trim().slice(0, 120) || 'belge';
+      if (ext && !shareName.toLowerCase().endsWith(`.${ext.toLowerCase()}`) && !/\.[A-Za-z0-9]{1,8}$/.test(shareName)) shareName += `.${ext}`;
+      const tempPath = `${dir}${encodeURIComponent(shareName).replace(/%2F/g, '_')}`;
+      if (!file.isSample && !isVirtualUri(uri) && (uri.startsWith('content://') || uri.startsWith('file://'))) {
+        await FileSystem.copyAsync({ from: uri, to: tempPath });
+      } else if (typeof file.content === 'string') {
+        await FileSystem.writeAsStringAsync(tempPath, file.content, { encoding: FileSystem.EncodingType.UTF8 });
+      } else if (typeof file.base64 === 'string') {
+        await FileSystem.writeAsStringAsync(tempPath, file.base64, { encoding: FileSystem.EncodingType.Base64 });
+      } else if (!isVirtualUri(uri) && !uri.startsWith('content://')) {
+        await FileSystem.copyAsync({ from: uri, to: tempPath });
+      } else {
+        Alert.alert('Paylaşılamadı', 'Bu dosya tek başına paylaşılamaz.');
+        return false;
+      }
+      uri = tempPath;
       await Sharing.shareAsync(uri, { mimeType, dialogTitle });
       return true;
     } catch (e) {
       logError('Paylaşım hatası.', e);
       Alert.alert('Paylaşılamadı', 'Dosya paylaşılırken bir sorun oluştu.');
       return false;
+    } finally {
+      this.sharing = false;
     }
   }
 

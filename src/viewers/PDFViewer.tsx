@@ -140,14 +140,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
   }, [passwordDraft]);
 
   const shareFile = useCallback(async () => {
-    try {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: file.name });
-      }
-    } catch (e) {
-      console.warn('PDF paylaşılamadı:', e);
-    }
-  }, [file.uri, file.name]);
+    await FileService.shareFile({ ...file, mimeType: file.mimeType || 'application/pdf' });
+  }, [file]);
 
   // ---- Küçük resim ızgarası: gerçek PDF render'ı yok, yalnız sayfa numarası kutuları (sanallaştırılmış)
   const gridCols = winWidth >= 600 ? 6 : 4;

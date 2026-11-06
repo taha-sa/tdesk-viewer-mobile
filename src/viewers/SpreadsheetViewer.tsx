@@ -17,6 +17,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as XLSX from 'xlsx';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system';
+import { writeFileAtomic } from '../utils/atomicWrite';
 import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import {
@@ -35,6 +36,8 @@ import {
 interface SpreadsheetViewerProps {
   file: FileInfo;
   appTheme?: AppThemeMode;
+  /** Kaydedilmemiş hücre düzenlemesi var/yok bildirimi (üst ekran çıkışta onay isteyebilsin). */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 // @@PURE-START
@@ -407,19 +410,63 @@ export function coerceEdit(existing: RawCell | undefined, text: string): CoerceR
 
 // ---- sıralama / arama ----
 
-function sortKey(s: string): number | null {
-  const t = s.trim();
-  if (!/^[+-]?(\d+([.,]\d+)?|[.,]\d+)%?$/.test(t)) return null;
-  const n = parseFloat(t.replace(',', '.').replace('%', ''));
+/**
+ * Biçimli hücre metninden sıralama anahtarı. "1.234,50", "1,234.50", "₺1.200", "%15", "-3,5" gibi sayıları tanır;
+ * tarih (gg.aa.yyyy / yyyy-aa-gg) ise zaman damgasına çevirir. Tanınmazsa null (metin olarak sıralanır).
+ */
+export function sortKey(s: string): number | null {
+  let t = s.trim();
+  if (!t) return null;
+  const date = t.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/) || null;
+  if (date) {
+    const d = Date.UTC(Number(date[3]), Number(date[2]) - 1, Number(date[1]));
+    return isNaN(d) ? null : d / 86400000;
+  }
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const d = Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    return isNaN(d) ? null : d / 86400000;
+  }
+  t = t.replace(/[\s ₺$€£]|TL|TRY|USD|EUR/gi, '').replace(/%$/, '');
+  if (!/^[+-]?[\d.,]+$/.test(t) || !/\d/.test(t)) return null;
+  const lastDot = t.lastIndexOf('.');
+  const lastComma = t.lastIndexOf(',');
+  let normalized: string;
+  if (lastDot >= 0 && lastComma >= 0) {
+    // ikisi de varsa sondaki ondalık ayırıcıdır
+    const dec = lastDot > lastComma ? '.' : ',';
+    const thou = dec === '.' ? ',' : '.';
+    normalized = t.split(thou).join('').replace(dec, '.');
+  } else if (lastDot >= 0 || lastComma >= 0) {
+    const sep = lastDot >= 0 ? '.' : ',';
+    const parts = t.split(sep);
+    // "1.234.567" veya "1,234" (tek grup, 3 hane) → binlik; aksi halde ondalık
+    const isThousands = parts.length > 2 || (parts.length === 2 && /^\d{3}$/.test(parts[1]) && /^[+-]?\d{1,3}$/.test(parts[0]) && sep === '.');
+    normalized = isThousands ? parts.join('') : parts.join('.');
+  } else {
+    normalized = t;
+  }
+  const n = parseFloat(normalized);
   return isNaN(n) ? null : n;
 }
 
-export function sortOrder(cells: string[][], rowCount: number, col: number, asc: boolean): number[] {
+/** İlk satır başlık gibi mi? (dolu hücrelerin hepsi sayı değil, en az 2 dolu hücre ve en az 2 veri satırı) */
+export function looksLikeHeaderRow(cells: string[][], rowCount: number): boolean {
+  if (rowCount < 3 || !cells[0]) return false;
+  const filled = cells[0].filter((v) => v && v.trim() !== '');
+  if (filled.length < 2) return false;
+  return filled.every((v) => sortKey(v) === null);
+}
+
+export function sortOrder(cells: string[][], rowCount: number, col: number, asc: boolean, pinFirst = false): number[] {
   const idx: number[] = new Array(rowCount);
   for (let i = 0; i < rowCount; i++) idx[i] = i;
   const val = (r: number) => (cells[r] && cells[r][col]) || '';
   const keys = idx.map((r) => sortKey(val(r)));
-  idx.sort((a, b) => {
+  const first = pinFirst && rowCount > 0 ? 0 : -1;
+  const body = first === 0 ? idx.slice(1) : idx;
+  const sortedBody = body;
+  sortedBody.sort((a, b) => {
     const sa = val(a);
     const sb = val(b);
     // boşlar her zaman sonda
@@ -435,7 +482,7 @@ export function sortOrder(cells: string[][], rowCount: number, col: number, asc:
     if (cmp === 0) return a - b;
     return asc ? cmp : -cmp;
   });
-  return idx;
+  return first === 0 ? [0, ...sortedBody] : sortedBody;
 }
 
 export interface CellMatch {
@@ -589,7 +636,7 @@ const SheetRow = React.memo(function SheetRow({ cells, r, rowNumber, colCount, w
   );
 });
 
-export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appTheme = 'emerald' }) => {
+export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appTheme = 'emerald', onDirtyChange }) => {
   const colors = Colors[appTheme] || Colors.emerald;
   const onPrimary = readableOn(colors.primary);
 
@@ -605,6 +652,9 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
   const [selected, setSelected] = useState<SelectedCell | null>(null);
   const [editValue, setEditValue] = useState('');
   const [pending, setPending] = useState<PendingEdit[]>([]);
+  const hasPending = pending.length > 0;
+  useEffect(() => { onDirtyChange?.(hasPending); }, [hasPending, onDirtyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -652,7 +702,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           throw new Error(`Dosya çok büyük (${formatBytes(file.size)}). Bu görüntüleyici en fazla ${formatBytes(MAX_XLSX_BYTES)} destekler.`);
         }
         let b64: string | undefined;
-        if (!file.virtual) {
+        if (!file.uri.includes('#')) { // yalnız 'zip#girdi' sanal adresleri diskten okunamaz; arşivden çıkarılan kopyalar normal dosyadır
           try {
             b64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
           } catch {
@@ -732,7 +782,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
       for (let i = 0; i < grid.rowCount; i++) seq[i] = i;
       return seq;
     }
-    return sortOrder(grid.cells, grid.rowCount, sortCol, sortAsc);
+    return sortOrder(grid.cells, grid.rowCount, sortCol, sortAsc, looksLikeHeaderRow(grid.cells, grid.rowCount));
   }, [grid, sortCol, sortAsc]);
 
   const found = useMemo(() => {
@@ -906,7 +956,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           enc1 = encodeTextBytes(text, 'utf-8', true);
           note = '\nBazı karakterler özgün kodlamada yazılamadığı için dosya UTF-8 (BOM\'lu) olarak kaydedildi.';
         }
-        await FileSystem.writeAsStringAsync(file.uri, bytesToBase64(enc1.bytes), { encoding: FileSystem.EncodingType.Base64 });
+        await writeFileAtomic(file.uri, bytesToBase64(enc1.bytes), 'base64');
       } else {
         const wb = wbRef.current;
         if (!wb) throw new Error('Özgün çalışma kitabı yüklenemedi.');
@@ -939,7 +989,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           ws['!ref'] = XLSX.utils.encode_range(rng);
         }
         const out = XLSX.write(wb, { type: 'base64', bookType: bookTypeFor(ext), cellDates: true });
-        await FileSystem.writeAsStringAsync(file.uri, out, { encoding: FileSystem.EncodingType.Base64 });
+        await writeFileAtomic(file.uri, out, 'base64');
       }
       setPending([]);
       const isAppCopy = !!FileSystem.cacheDirectory && file.uri.startsWith(FileSystem.cacheDirectory);

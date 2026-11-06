@@ -844,7 +844,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           throw new Error('Sunum çok büyük; bu cihazda güvenle açılamaz.');
         }
         let b64: string | undefined;
-        if (!file.virtual) {
+        if (!file.uri.includes('#')) { // yalnız 'zip#girdi' sanal adresleri diskten okunamaz; arşivden çıkarılan kopyalar normal dosyadır
           try {
             b64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
           } catch {
