@@ -5,7 +5,7 @@ import { Colors } from '../theme/colors';
 import { SYNTAX_THEMES } from '../theme/syntaxThemes';
 import { THEME_OPTIONS } from '../theme/themeOptions';
 import { FileService } from '../services/fileService';
-import { checkForUpdate, openUpdate, formatUpdateMessage } from '../services/updateService';
+import { checkForUpdate, openUpdate, formatUpdateMessage, fetchCodeUpdate, restartApp } from '../services/updateService';
 import { getLockAvailability, LockAvailability } from '../services/appLock';
 import { APP_DISPLAY_NAME, getAppVersion } from '../utils/appInfo';
 import { AppThemeMode, SyntaxTheme, ThemePreference } from '../types';
@@ -55,6 +55,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     if (updateBusy) return;
     setUpdateBusy(true);
     try {
+      // 1) APK gerektirmeyen kod güncellemesi (varsa indirilir, yeniden başlatınca uygulanır)
+      const code = await fetchCodeUpdate();
+      if (code === 'ready') {
+        Alert.alert('Güncelleme hazır', 'Yeni sürüm indirildi. Uygulamayı yeniden başlatarak uygulayabilirsiniz.', [
+          { text: 'Sonra', style: 'cancel' },
+          { text: 'Yeniden başlat', onPress: () => { void restartApp(); } },
+        ]);
+        return;
+      }
+      // 2) Yeni APK (yerel değişiklik) var mı?
       const result = await checkForUpdate();
       if (result.status === 'available') {
         Alert.alert('Güncelleme mevcut', formatUpdateMessage(result), [

@@ -7,6 +7,7 @@
 // Not: Güncellemenin mevcut uygulamanın üstüne kurulabilmesi için APK aynı imza anahtarıyla (EAS keystore) üretilmelidir.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Linking, Platform } from 'react-native';
+import * as Updates from 'expo-updates';
 import { getAppVersion } from '../utils/appInfo';
 
 /** Güncellemelerin yayımlandığı GitHub deposu (T-Desk Viewer'a ÖZEL; diğer depolarla karışmaz). */
@@ -150,4 +151,25 @@ export async function autoCheckAndPrompt(): Promise<void> {
       { text: 'Güncelle', onPress: () => { void openUpdate(result); } },
     ]);
   } catch { /* açılışı asla bozma */ }
+}
+
+// ---------------------------------------------------------------------------
+// Kod güncellemesi (OTA, expo-updates): APK gerektirmeyen JS/kaynak değişiklikleri
+// ---------------------------------------------------------------------------
+
+/** 'ready': yeni kod indirildi (yeniden başlatınca uygulanır); 'none': güncel; 'unavailable': bu derlemede OTA kapalı (geliştirme vb.); 'error'. */
+export async function fetchCodeUpdate(): Promise<'ready' | 'none' | 'unavailable' | 'error'> {
+  try {
+    if (__DEV__ || !Updates.isEnabled) return 'unavailable';
+    const check = await Updates.checkForUpdateAsync();
+    if (!check.isAvailable) return 'none';
+    const fetched = await Updates.fetchUpdateAsync();
+    return fetched.isNew ? 'ready' : 'none';
+  } catch {
+    return 'error';
+  }
+}
+
+export async function restartApp(): Promise<void> {
+  try { await Updates.reloadAsync(); } catch { /* yeniden başlatılamazsa bir sonraki açılışta uygulanır */ }
 }

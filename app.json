@@ -170,6 +170,14 @@
         "projectId": "be71241b-a07d-41b2-b900-1ad21470969f"
       }
     },
-    "owner": "taha311"
+    "owner": "taha311",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/be71241b-a07d-41b2-b900-1ad21470969f",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
