@@ -30,7 +30,6 @@ interface PDFViewerProps { file: FileInfo; appTheme?: AppThemeMode; }
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
-const SCALE_STEP = 0.5;
 const SAVE_DEBOUNCE_MS = 1000;
 const HIT = { top: 6, bottom: 6, left: 6, right: 6 };
 
@@ -49,7 +48,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
   const [totalPages, setTotalPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
   const [pageInput, setPageInput] = useState<string>(String(initialPage));
-  const [scale, setScale] = useState<number>(1);
   const [isGridVisible, setIsGridVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [progress, setProgress] = useState<number>(0);
@@ -61,6 +59,10 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
   const [reloadKey, setReloadKey] = useState<number>(0);
 
   const source = useMemo(() => ({ uri: file.uri, cache: true }), [file.uri]);
+  // ÖNEMLİ (Android): react-native-pdf, native bir prop (scale, page, style...) değiştiğinde belgeyi BAŞTAN yükler
+  // (PdfManager.onAfterUpdateTransaction → drawPdf). Bu yüzden yakınlaştırma yalnızca yerleşik hareketlerle
+  // (çimdik / çift dokunma) yapılır; scale prop'u sabit tutulur ve onScaleChanged state'e geri yazılmaz.
+  const pdfStyle = useMemo(() => [styles.pdf, { width: winWidth }], [winWidth]);
 
   // ---- Son okunan sayfa: debounce + unmount'ta son kayıt
   const latestPage = useRef<number>(initialPage);
@@ -104,10 +106,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
     if (isNaN(n)) { setPageInput(String(currentPage)); return; }
     goToPage(n);
   }, [pageInput, currentPage, goToPage]);
-
-  const zoom = useCallback((delta: number) => {
-    setScale((s) => Math.max(MIN_SCALE, Math.min(MAX_SCALE, Math.round((s + delta) * 10) / 10)));
-  }, []);
 
   const handleError = useCallback((err: unknown) => {
     const msg = errorMessage(err);
@@ -279,11 +277,11 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
           ref={pdfRef}
           source={source}
           page={initialPage}
-          scale={scale}
+          scale={1}
           minScale={MIN_SCALE}
           maxScale={MAX_SCALE}
           password={password}
-          style={[styles.pdf, { width: winWidth }]}
+          style={pdfStyle}
           fitPolicy={0}
           enablePaging={false}
           horizontal={false}
@@ -309,9 +307,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
             setCurrentPage(page);
             setPageInput(String(page));
             scheduleSave();
-          }}
-          onScaleChanged={(s: number) => {
-            if (isFinite(s) && s >= MIN_SCALE) setScale(Math.min(MAX_SCALE, s));
           }}
           onError={handleError}
         />
@@ -346,8 +341,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
         </View>
         {iconBtn('Sonraki sayfa', 'chevron-forward', () => goToPage(currentPage + 1), isLoading || (totalPages > 0 && currentPage >= totalPages))}
         <View style={styles.flex} />
-        {iconBtn('Uzaklaştır', 'remove-circle-outline', () => zoom(-SCALE_STEP), scale <= MIN_SCALE || isLoading)}
-        {iconBtn('Yakınlaştır', 'add-circle-outline', () => zoom(SCALE_STEP), scale >= MAX_SCALE || isLoading)}
         {iconBtn('Tüm sayfalar', 'grid', () => setIsGridVisible(true), totalPages === 0)}
       </View>
 
