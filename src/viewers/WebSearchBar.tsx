@@ -23,13 +23,16 @@ interface WebSearchBarProps {
   onClose: () => void;
   /** Aramanın kapsamı hakkında kısa not (örn. "Bu bölümde") */
   scopeLabel?: string;
+  /** Süren tarama durumu (örn. "taranıyor %40") */
+  busyText?: string;
 }
 
 const HIT = { top: 4, bottom: 4, left: 4, right: 4 };
 
-export const WebSearchBar: React.FC<WebSearchBarProps> = ({ colors, value, onChange, count, index, onNext, onPrev, onClose, scopeLabel }) => {
+export const WebSearchBar: React.FC<WebSearchBarProps> = ({ colors, value, onChange, count, index, onNext, onPrev, onClose, scopeLabel, busyText }) => {
   const hasQuery = value.trim().length > 0;
-  const status = !hasQuery ? '' : count === 0 ? 'Sonuç yok' : `${index + 1} / ${count}`;
+  const base = count === 0 ? (busyText ? '' : 'Sonuç yok') : `${index + 1} / ${count}`;
+  const status = !hasQuery ? '' : [base, busyText].filter(Boolean).join(' · ');
   return (
     <View style={[styles.wrap, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       <View style={[styles.inputBox, { borderColor: colors.border, backgroundColor: colors.background }]}>

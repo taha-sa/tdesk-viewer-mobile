@@ -53,6 +53,7 @@
     "@types/highlight.js": "^10.1.0",
     "@types/jszip": "^3.4.1",
     "@types/react": "~18.3.12",
+    "pdfjs-dist": "^3.11.174",
     "typescript": "^5.3.3"
   },
   "private": true

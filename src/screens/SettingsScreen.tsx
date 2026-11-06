@@ -6,6 +6,7 @@ import { SYNTAX_THEMES } from '../theme/syntaxThemes';
 import { THEME_OPTIONS } from '../theme/themeOptions';
 import { FileService } from '../services/fileService';
 import { checkForUpdate, openUpdate, formatUpdateMessage, fetchCodeUpdate, restartApp } from '../services/updateService';
+import { loadPdfEngine, savePdfEngine, PdfEngine } from '../utils/pdfEngine';
 import { getLockAvailability, LockAvailability } from '../services/appLock';
 import { APP_DISPLAY_NAME, getAppVersion } from '../utils/appInfo';
 import { AppThemeMode, SyntaxTheme, ThemePreference } from '../types';
@@ -50,6 +51,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [lockBusy, setLockBusy] = useState(false);
   const [storageBusy, setStorageBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
+  const [pdfEngine, setPdfEngine] = useState<PdfEngine>('advanced');
+  useEffect(() => {
+    let alive = true;
+    loadPdfEngine().then((e) => { if (alive) setPdfEngine(e); });
+    return () => { alive = false; };
+  }, []);
+  const choosePdfEngine = async (e: PdfEngine) => {
+    setPdfEngine(e);
+    if (!(await savePdfEngine(e))) Alert.alert('Kaydedilemedi', 'PDF motoru tercihi kaydedilemedi.');
+  };
 
   const handleCheckUpdate = async () => {
     if (updateBusy) return;
@@ -244,6 +255,34 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               accessibilityState={{ checked: appLockEnabled, disabled: lockSwitchDisabled }}
             />
           </View>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>PDF MOTORU</Text>
+        <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
+          {([
+            { id: 'advanced' as PdfEngine, title: 'Gelişmiş (arama var)', sub: 'pdf.js ile açılır: belgede arama, sayfa içinde işaretleme, metin seçme. Metin içeren PDF dosyalarında çalışır (taranmış resimlerde arama olmaz). Çok büyük dosyalar otomatik olarak hızlı motorla açılır.' },
+            { id: 'fast' as PdfEngine, title: 'Hızlı (yerel)', sub: 'Yerel motor: büyük dosyalarda daha akıcı, arama yok.' },
+          ]).map((opt, i) => {
+            const selected = pdfEngine === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.actionRow, i > 0 && { borderTopWidth: 1, borderTopColor: currentColors.border }]}
+                onPress={() => { void choosePdfEngine(opt.id); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected }}
+                accessibilityLabel={opt.title}
+              >
+                <View style={styles.infoLeft}>
+                  <Ionicons name={selected ? 'radio-button-on' : 'radio-button-off'} size={20} color={selected ? currentColors.primary : currentColors.textMuted} />
+                  <View style={styles.infoTextWrap}>
+                    <Text style={[styles.infoTitle, { color: currentColors.text }]}>{opt.title}</Text>
+                    <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>{opt.sub}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>DOSYA ERİŞİMİ</Text>

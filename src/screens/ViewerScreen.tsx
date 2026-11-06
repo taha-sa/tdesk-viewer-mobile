@@ -13,6 +13,8 @@ import { readTextFileSmart, TextReadError } from '../utils/textEncoding';
 // Viewers
 // PDF görüntüleyici tembel yüklenir (yerel modül yoksa uygulamanın açılışını düşürmesin).
 const PDFViewer = React.lazy(async () => ({ default: (require('../viewers/PDFViewer') as typeof import('../viewers/PDFViewer')).PDFViewer }));
+const PDFJsViewer = React.lazy(async () => ({ default: (require('../viewers/PDFJsViewer') as typeof import('../viewers/PDFJsViewer')).PDFJsViewer }));
+import { loadPdfEngine, canUseAdvancedEngine, PdfEngine } from '../utils/pdfEngine';
 import { CodeViewer } from '../viewers/CodeViewer';
 import { MarkdownViewer } from '../viewers/MarkdownViewer';
 import { SpreadsheetViewer } from '../viewers/SpreadsheetViewer';
@@ -57,6 +59,15 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [sharing, setSharing] = useState<boolean>(false);
   const mountedRef = useRef(true);
+  // PDF motoru: ayarlardan okunur (gelişmiş = pdf.js ile arama); uygun olmayan dosyada veya hata sonrası hızlı (yerel) motor.
+  const [pdfEngine, setPdfEngine] = useState<PdfEngine | null>(initialFile.category === 'pdf' ? null : 'fast');
+  const [pdfForceFast, setPdfForceFast] = useState<boolean>(false);
+  useEffect(() => {
+    if (initialFile.category !== 'pdf') return;
+    let alive = true;
+    loadPdfEngine().then((e) => { if (alive) setPdfEngine(e); });
+    return () => { alive = false; };
+  }, [initialFile.category]);
   const sharingRef = useRef(false);
   // Kaydedilmemiş düzenleme (Kod/Tablo görüntüleyicileri bildirir): çıkarken onay istenir.
   const dirtyRef = useRef(false);
@@ -241,12 +252,18 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
     const viewerKey = file.id || file.uri;
 
     switch (file.category) {
-      case 'pdf':
+      case 'pdf': {
+        const spinner = <View style={[styles.center, { backgroundColor: currentColors.background }]}><ActivityIndicator size="large" color={currentColors.primary} /></View>;
+        if (pdfEngine === null) return spinner;
+        const useAdvanced = pdfEngine === 'advanced' && !pdfForceFast && canUseAdvancedEngine(file).ok;
         return (
-          <Suspense fallback={<View style={[styles.center, { backgroundColor: currentColors.background }]}><ActivityIndicator size="large" color={currentColors.primary} /></View>}>
-            <PDFViewer key={viewerKey} file={file} appTheme={appTheme} />
+          <Suspense fallback={spinner}>
+            {useAdvanced
+              ? <PDFJsViewer key={viewerKey + '-js'} file={file} appTheme={appTheme} onFallback={() => setPdfForceFast(true)} />
+              : <PDFViewer key={viewerKey} file={file} appTheme={appTheme} />}
           </Suspense>
         );
+      }
       case 'code':
         return <CodeViewer key={viewerKey} file={file} appTheme={appTheme} codeTheme={defaultCodeTheme} onDirtyChange={handleDirtyChange} />;
       case 'markdown':
