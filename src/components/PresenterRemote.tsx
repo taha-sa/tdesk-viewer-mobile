@@ -71,9 +71,20 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
     else if (bad) { setStatus(''); setBad(false); }
   }, [bad]);
 
+  // Sunum bitti/başlamadı mı? Unmount'ta tekrar 'end' gitmesin (idempotent).
+  const endSent = useRef(false);
+  const stateRef = useRef({ startError, failMsg });
+  stateRef.current = { startError, failMsg };
+  useEffect(() => () => {
+    const st = stateRef.current;
+    if (endSent.current || st.startError || st.failMsg) return;
+    endSent.current = true;
+    void sendPresentKey('end');
+  }, []);
+
   const finish = useCallback(async () => {
     if (startError || failMsg) { onClose(); return; }
-    await sendPresentKey('end');
+    if (!endSent.current) { endSent.current = true; await sendPresentKey('end'); }
     onClose();
   }, [onClose, startError, failMsg]);
 
