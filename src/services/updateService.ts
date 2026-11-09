@@ -52,7 +52,8 @@ export function compareVersions(a: unknown, b: unknown): number {
 
 /** Bu depoya ait bir release bağlantısı mı (yalnızca https + doğru kullanıcı/depo). */
 export function isTrustedReleaseUrl(url: unknown): url is string {
-  return typeof url === 'string' && url.startsWith(RELEASE_URL_PREFIX) && !/[\s"'<>]/.test(url);
+  if (typeof url !== 'string' || /\.\.|%2e/i.test(url)) return false;
+  return url.startsWith(RELEASE_URL_PREFIX) && !/[\s"'<>]/.test(url);
 }
 
 interface GitHubAsset { name?: unknown; browser_download_url?: unknown; size?: unknown; }
@@ -102,15 +103,19 @@ export async function checkForUpdate(): Promise<UpdateResult> {
       headers: { Accept: 'application/vnd.github+json' },
       signal: controller.signal,
     });
-    if (res.status === 404) return { status: 'latest', current, latest: current }; // henüz yayın yok
+    if (res.status === 404) {
+      try { await AsyncStorage.setItem(KEYS.LAST_CHECK, String(Date.now())); } catch { /* önemsiz */ }
+      return { status: 'latest', current, latest: current }; // henüz yayın yok
+    }
     if (!res.ok) return { status: 'error', message: `Güncelleme sunucusu yanıt vermedi (${res.status}).` };
-    return evaluateRelease(await res.json(), current);
+    const result = evaluateRelease(await res.json(), current);
+    try { await AsyncStorage.setItem(KEYS.LAST_CHECK, String(Date.now())); } catch { /* önemsiz */ }
+    return result;
   } catch (e: any) {
     const aborted = e?.name === 'AbortError';
     return { status: 'error', message: aborted ? 'Bağlantı zaman aşımına uğradı.' : 'İnternet bağlantısı kurulamadı.' };
   } finally {
     clearTimeout(timer);
-    try { await AsyncStorage.setItem(KEYS.LAST_CHECK, String(Date.now())); } catch { /* önemsiz */ }
   }
 }
 

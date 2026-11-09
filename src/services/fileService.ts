@@ -1141,7 +1141,19 @@ export class FileService {
       if (!cacheDir) return null;
       const ext = file.extension || getExtension(file.name);
       const root = `${cacheDir}export/`;
-      try { await FileSystem.deleteAsync(root, { idempotent: true }); } catch { /* eski kopyalar */ }
+      const exportTtlMs = 60 * 60 * 1000; // 1 saatten eski dışa aktarma kopyaları silinir
+      try {
+        const names = await FileSystem.readDirectoryAsync(root);
+        const now = Date.now();
+        for (const name of names) {
+          try {
+            const full = `${root}${name}`;
+            const info = await FileSystem.getInfoAsync(full);
+            if (info.exists && typeof info.modificationTime === 'number' && now - info.modificationTime * 1000 < exportTtlMs) continue;
+            await FileSystem.deleteAsync(full, { idempotent: true });
+          } catch { /* tek öğe hatası temizliği durdurmasın */ }
+        }
+      } catch { /* eski kopyalar */ }
       const dir = `${root}${Date.now()}/`;
       await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
       let name = String(file.originalName || file.name || 'belge').replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_').trim().slice(0, 120) || 'belge';
