@@ -49,9 +49,10 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
   }, [bad]);
 
   const finish = useCallback(async () => {
+    if (startError) { onClose(); return; }
     await sendPresentKey('end');
     onClose();
-  }, [onClose]);
+  }, [onClose, startError]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { void finish(); return true; });
