@@ -25,6 +25,7 @@ private const val BRIDGE_SHARE = "app.kopru.ShareActivity"
 private const val WHAT_SEND = 1
 private const val WHAT_KEY = 2
 private const val WHAT_RESULT = 100
+private const val WHAT_PRESENT_STATE = 101
 
 /**
  * T-Bridge köprüsü (yalnızca Android). Kanal: T-Bridge'in dışa açık ViewerBridgeService'i (Messenger); T-Bridge çağıranın UID'sinden
@@ -40,7 +41,19 @@ class TDeskBridgeModule : Module() {
   private val waiting = ArrayList<(Messenger?) -> Unit>()
 
   private val reply = Messenger(Handler(Looper.getMainLooper()) { msg ->
-    if (msg.what == WHAT_RESULT) {
+    if (msg.what == WHAT_PRESENT_STATE) {
+      // Sunum durumu: state = "transferring" | "opened" | "failed" (eski T-Bridge bunu göndermez).
+      val st = msg.data.getString("state") ?: ""
+      sendEvent(
+        "onBridgeResult",
+        mapOf(
+          "ok" to (st != "failed"),
+          "message" to (msg.data.getString("msg") ?: ""),
+          "connected" to msg.data.getBoolean("connected", true),
+          "state" to st,
+        ),
+      )
+    } else if (msg.what == WHAT_RESULT) {
       sendEvent(
         "onBridgeResult",
         mapOf(

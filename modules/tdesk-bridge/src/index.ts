@@ -8,7 +8,11 @@ export interface BridgeResult {
   message: string;
   /** T-Bridge şu an bilgisayara bağlı mı. */
   connected: boolean;
+  /** Yalnızca sunum durumu olaylarında (WHAT_PRESENT_STATE=101); eski T-Bridge göndermez. */
+  state?: PresentState;
 }
+
+export type PresentState = 'transferring' | 'opened' | 'failed';
 
 export type PresentKey = 'next' | 'prev' | 'end';
 

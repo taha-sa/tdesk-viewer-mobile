@@ -320,7 +320,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
   const handleSendToPc = useCallback(async (f: FileInfo) => {
     setSheetOpen(false);
     const err = await sendToPc(f);
-    showNotice(err ?? "T-Bridge'e gönderildi; sonuç T-Bridge'de görünür.");
+    showNotice(err ?? "T-Bridge'e iletildi; aktarım sonucunu T-Bridge'de görürsünüz.");
   }, [showNotice]);
 
   const startPresent = useCallback(async (f: FileInfo) => {

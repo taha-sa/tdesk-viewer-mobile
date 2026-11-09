@@ -1,11 +1,11 @@
 // T-Bridge (PC ile telefon eşleme uygulaması) entegrasyonu: "Bilgisayara gönder" ve "Bilgisayarda sun".
 // Yalnızca T-Bridge (app.kopru) kuruluysa kullanılır; yerel modül yoksa (Expo Go/web/iOS) her şey sessizce kapalıdır.
 import { Platform } from 'react-native';
-import { TDeskBridge, BRIDGE_PACKAGE, BridgeResult, PresentKey } from '../../modules/tdesk-bridge/src';
+import { TDeskBridge, BRIDGE_PACKAGE, BridgeResult, PresentKey, PresentState } from '../../modules/tdesk-bridge/src';
 import { FileService } from './fileService';
 import type { FileInfo } from '../types';
 
-export type { BridgeResult, PresentKey };
+export type { BridgeResult, PresentKey, PresentState };
 
 /** Sunum olarak PC'ye gönderilebilen türler. */
 export function canPresent(file: FileInfo): boolean {

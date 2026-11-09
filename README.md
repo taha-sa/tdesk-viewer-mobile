@@ -31,3 +31,13 @@ Yeni sürüm varsa release'e eklenmiş `.apk` indirme bağlantısını açar.
 4. Kullanıcılar uygulamayı açtığında (veya Ayarlar'dan denetlediğinde) güncelleme önerisi görür.
 
 Notlar: taslak (draft) ve ön sürüm (pre-release) release'leri dikkate alınmaz. Güncelleme yalnızca `github.com/taha-sa/tdesk-viewer-releases/releases/` adreslerini açar. iOS'ta APK yoktur; yayın sayfası açılır.
+
+## T-Bridge sunum durumu sözleşmesi (WHAT_PRESENT_STATE)
+
+Viewer, T-Bridge'in `ViewerBridgeService` Messenger kanalını kullanır (`what=1 SEND`, `2 KEY`, `3 PING`, yanıt `100`). Sunum sonucunu gerçek duruma bağlamak için T-Bridge, `SEND` (`present=true`) iletisindeki `replyTo`'ya şu iletiyi gönderir:
+
+- `what = 101` (`WHAT_PRESENT_STATE`)
+- `Bundle`: `state: String` = `"transferring"` (dosya PC'ye aktarılıyor) | `"opened"` (sunum PC'de açıldı) | `"failed"` (açılamadı); `msg: String` (kullanıcıya gösterilecek Türkçe metin; `failed` için neden); `connected: Boolean` (isteğe bağlı, varsayılan `true`).
+- Sıra: `transferring` → `opened` veya `failed`. Her olay yeni 20 sn'lik bekleme başlatır.
+
+Viewer bu iletiyi `onBridgeResult` olayına `state` alanıyla taşır. Eski T-Bridge 101 göndermezse, dosya gönderildikten 20 sn sonra eski davranışa düşer ("Bilgisayarda sunum açık"). `what=100` yanıtları değişmedi.

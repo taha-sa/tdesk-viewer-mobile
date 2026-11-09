@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicat
 import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
-import { onBridgeResult, sendPresentKey, PresentKey } from '../services/bridgeService';
+import { onBridgeResult, sendPresentKey, PresentKey, PresentState } from '../services/bridgeService';
 
 interface PresenterRemoteProps {
   appTheme: AppThemeMode;
@@ -17,6 +17,8 @@ interface PresenterRemoteProps {
 }
 
 const SWIPE_MIN = 48;
+/** Bu sürede durum olayı gelmezse (eski T-Bridge) sunum açık varsayılır. */
+const STATE_TIMEOUT_MS = 20000;
 
 /**
  * Sunum kumandası: PC'de açılan sunumu Önceki / Sonraki düğmeleri ve kaydırma ile yönetir; "Sunumu bitir" Esc gönderir.
@@ -28,11 +30,32 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
   const [bad, setBad] = useState(false);
   const [pressed, setPressed] = useState<PresentKey | null>(null);
   const alive = useRef(true);
+  // Sunum durumu: null = henüz olay yok; 'opened' eski T-Bridge için zaman aşımıyla da atanır.
+  const [phase, setPhase] = useState<PresentState | null>(null);
+  const [failMsg, setFailMsg] = useState<string | null>(null);
+
+  // Yeni başlatma (veya yeniden deneme): durumu sıfırla.
+  useEffect(() => {
+    if (starting) { setPhase(null); setFailMsg(null); }
+  }, [starting]);
+
+  // Dosya gönderildi ama T-Bridge durum bildirmedi: 20 sn sonra eski davranışa düş.
+  useEffect(() => {
+    if (starting || startError || phase === 'opened' || phase === 'failed') return;
+    const t = setTimeout(() => { if (alive.current) setPhase('opened'); }, STATE_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [starting, startError, phase]);
 
   useEffect(() => {
     alive.current = true;
     const sub = onBridgeResult((r) => {
       if (!alive.current) return;
+      if (r.state) {
+        setPhase(r.state);
+        if (r.state === 'failed') setFailMsg(r.message || 'Sunum bilgisayarda açılamadı.');
+        else if (r.message) setStatus(r.message);
+        return;
+      }
       if (r.message) setStatus(r.message);
       setBad(!r.ok);
     });
@@ -49,10 +72,10 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
   }, [bad]);
 
   const finish = useCallback(async () => {
-    if (startError) { onClose(); return; }
+    if (startError || failMsg) { onClose(); return; }
     await sendPresentKey('end');
     onClose();
-  }, [onClose, startError]);
+  }, [onClose, startError, failMsg]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { void finish(); return true; });
@@ -69,12 +92,15 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
   const pressRef = useRef(press);
   pressRef.current = press;
 
-  if (startError) {
+  const errText = startError ?? failMsg;
+  const transferring = starting || phase === 'transferring';
+  const waiting = !transferring && phase === null;
+  if (errText) {
     return (
       <View style={[styles.root, { backgroundColor: c.background }]}>
         <Ionicons name="alert-circle-outline" size={44} color={c.danger} />
         <Text style={[styles.title, { color: c.text }]}>Sunum başlatılamadı</Text>
-        <Text style={[styles.body, { color: c.textSecondary }]}>{startError}</Text>
+        <Text style={[styles.body, { color: c.textSecondary }]}>{errText}</Text>
         <View style={styles.row}>
           <TouchableOpacity style={[styles.smallBtn, { backgroundColor: c.primary }]} onPress={onRetry} accessibilityRole="button">
             <Text style={[styles.smallBtnText, { color: c.onPrimary }]}>Yeniden dene</Text>
@@ -95,9 +121,9 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
       </View>
 
       <View style={[styles.statusPill, { backgroundColor: bad ? 'rgba(239,68,68,0.14)' : c.primaryGlow }]} accessibilityLiveRegion="polite">
-        {starting ? <ActivityIndicator size="small" color={c.primary} /> : <Ionicons name={bad ? 'warning-outline' : 'desktop-outline'} size={16} color={bad ? c.danger : c.primary} />}
+        {(transferring || waiting) ? <ActivityIndicator size="small" color={c.primary} /> : <Ionicons name={bad ? 'warning-outline' : 'desktop-outline'} size={16} color={bad ? c.danger : c.primary} />}
         <Text style={[styles.statusText, { color: bad ? c.danger : c.textSecondary }]} numberOfLines={2}>
-          {starting ? 'Dosya bilgisayara gönderiliyor…' : (status || 'Bilgisayarda sunum açık. Kaydırarak veya düğmelerle ilerleyin.')}
+          {transferring ? 'Dosya aktarılıyor…' : waiting ? 'Bilgisayarın yanıtı bekleniyor…' : (status || 'Bilgisayarda sunum açık. Kaydırarak veya düğmelerle ilerleyin.')}
         </Text>
       </View>
 
@@ -105,7 +131,7 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
         <TouchableOpacity
           style={[styles.bigBtn, { backgroundColor: c.surface, borderColor: pressed === 'prev' ? c.primary : c.border }]}
           onPress={() => void press('prev')}
-          disabled={starting}
+          disabled={transferring}
           activeOpacity={0.75}
           accessibilityRole="button"
           accessibilityLabel="Önceki slayt"
@@ -116,7 +142,7 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
         <TouchableOpacity
           style={[styles.bigBtn, { backgroundColor: c.primary, borderColor: c.primary, opacity: pressed === 'next' ? 0.85 : 1 }]}
           onPress={() => void press('next')}
-          disabled={starting}
+          disabled={transferring}
           activeOpacity={0.75}
           accessibilityRole="button"
           accessibilityLabel="Sonraki slayt"
