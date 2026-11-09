@@ -120,7 +120,7 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
         <Text style={[styles.fileName, { color: c.text }]} numberOfLines={1}>{fileName}</Text>
       </View>
 
-      <View style={[styles.statusPill, { backgroundColor: bad ? 'rgba(239,68,68,0.14)' : c.primaryGlow }]} accessibilityLiveRegion="polite">
+      <View style={[styles.statusPill, { backgroundColor: bad ? c.danger + '24' : c.primaryGlow }]} accessibilityLiveRegion="polite">
         {(transferring || waiting) ? <ActivityIndicator size="small" color={c.primary} /> : <Ionicons name={bad ? 'warning-outline' : 'desktop-outline'} size={16} color={bad ? c.danger : c.primary} />}
         <Text style={[styles.statusText, { color: bad ? c.danger : c.textSecondary }]} numberOfLines={2}>
           {transferring ? 'Dosya aktarılıyor…' : waiting ? 'Bilgisayarın yanıtı bekleniyor…' : (status || 'Bilgisayarda sunum açık. Kaydırarak veya düğmelerle ilerleyin.')}
