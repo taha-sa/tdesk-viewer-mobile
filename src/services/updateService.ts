@@ -153,6 +153,21 @@ export async function autoCheckAndPrompt(): Promise<void> {
   } catch { /* açılışı asla bozma */ }
 }
 
+/** Derin bağlantıdan (tdeskviewer://update; T-Bridge "Güncelleme var" rozeti) gelen açık istek: denetler ve her durumda sonuç gösterir. */
+export async function promptUpdateNow(): Promise<void> {
+  const result = await checkForUpdate();
+  if (result.status === 'available') {
+    Alert.alert('Güncelleme mevcut', formatUpdateMessage(result), [
+      { text: 'Sonra', style: 'cancel' },
+      { text: 'Güncelle', onPress: () => { void openUpdate(result); } },
+    ]);
+  } else if (result.status === 'latest') {
+    Alert.alert('Güncel', `T-Desk Viewer son sürümde (${result.current}).`);
+  } else {
+    Alert.alert('Denetlenemedi', result.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Kod güncellemesi (OTA, expo-updates): APK gerektirmeyen JS/kaynak değişiklikleri
 // ---------------------------------------------------------------------------

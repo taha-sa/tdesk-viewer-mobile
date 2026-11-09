@@ -9,6 +9,9 @@ import { FileDetailsModal } from '../components/FileDetailsModal';
 import { FileService } from '../services/fileService';
 import { ViewerErrorBoundary } from '../components/ViewerErrorBoundary';
 import { readTextFileSmart, TextReadError } from '../utils/textEncoding';
+import { BridgeSheet } from '../components/BridgeSheet';
+import { PresenterRemote } from '../components/PresenterRemote';
+import { isBridgeInstalled, canPresent, canSendToPc, sendToPc, presentOnPc } from '../services/bridgeService';
 
 // Viewers
 // PDF görüntüleyici tembel yüklenir (yerel modül yoksa uygulamanın açılışını düşürmesin).
@@ -58,6 +61,14 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
   const [gate, setGate] = useState<Gate>(() => (needsPreload(initialFile) ? { kind: 'loading' } : { kind: 'ready', file: initialFile }));
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [sharing, setSharing] = useState<boolean>(false);
+  // T-Bridge entegrasyonu: yalnızca T-Bridge kuruluysa "Bilgisayar" düğmesi görünür.
+  const [bridgeInstalled] = useState<boolean>(() => isBridgeInstalled());
+  const [sheetOpen, setSheetOpen] = useState<boolean>(false);
+  const [presenting, setPresenting] = useState<boolean>(false);
+  const [presentStarting, setPresentStarting] = useState<boolean>(false);
+  const [presentError, setPresentError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   // PDF motoru: ayarlardan okunur (gelişmiş = pdf.js ile arama); uygun olmayan dosyada veya hata sonrası hızlı (yerel) motor.
   const [pdfEngine, setPdfEngine] = useState<PdfEngine | null>(initialFile.category === 'pdf' ? null : 'fast');
@@ -299,6 +310,30 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
     }
   };
 
+  const showNotice = useCallback((msg: string) => {
+    setNotice(msg);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 3200);
+  }, []);
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current); }, []);
+
+  const handleSendToPc = useCallback(async (f: FileInfo) => {
+    setSheetOpen(false);
+    const err = await sendToPc(f);
+    showNotice(err ?? "T-Bridge'e gönderildi; sonuç T-Bridge'de görünür.");
+  }, [showNotice]);
+
+  const startPresent = useCallback(async (f: FileInfo) => {
+    setSheetOpen(false);
+    setPresenting(true);
+    setPresentStarting(true);
+    setPresentError(null);
+    const err = await presentOnPc(f);
+    if (!mountedRef.current) return;
+    setPresentStarting(false);
+    if (err) setPresentError(err);
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: currentColors.background }]}>
       <StatusBar
@@ -331,6 +366,17 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
         </View>
 
         <View style={styles.headerActions}>
+          {bridgeInstalled && canSendToPc(currentFile) && gate.kind === 'ready' && (
+            <TouchableOpacity
+              style={styles.actionBtn}
+              onPress={() => setSheetOpen(true)}
+              hitSlop={HIT_SLOP}
+              accessibilityRole="button"
+              accessibilityLabel="Bilgisayar eylemleri"
+            >
+              <Ionicons name="desktop-outline" size={20} color={currentColors.text} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={handleShare}
@@ -357,8 +403,35 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
 
       {/* İlgili Formatın Görüntüleyici Motoru */}
       <View style={styles.viewerContainer}>
-        <ViewerErrorBoundary appTheme={appTheme} onBack={onBack}>{renderActiveViewer()}</ViewerErrorBoundary>
+        {presenting ? (
+          <PresenterRemote
+            appTheme={appTheme}
+            fileName={currentFile.name}
+            starting={presentStarting}
+            startError={presentError}
+            onRetry={() => { void startPresent(currentFile); }}
+            onClose={() => { setPresenting(false); setPresentError(null); }}
+          />
+        ) : (
+          <ViewerErrorBoundary appTheme={appTheme} onBack={onBack}>{renderActiveViewer()}</ViewerErrorBoundary>
+        )}
       </View>
+
+      {notice && (
+        <View style={[styles.notice2, { backgroundColor: currentColors.surfaceLight, borderColor: currentColors.border }]} accessibilityLiveRegion="polite">
+          <Text style={{ color: currentColors.text, fontSize: 13, fontWeight: '600', textAlign: 'center' }}>{notice}</Text>
+        </View>
+      )}
+
+      <BridgeSheet
+        visible={sheetOpen}
+        appTheme={appTheme}
+        fileName={currentFile.name}
+        canPresent={canPresent(currentFile)}
+        onSend={() => { void handleSendToPc(currentFile); }}
+        onPresent={() => { void startPresent(currentFile); }}
+        onClose={() => setSheetOpen(false)}
+      />
 
       {/* Dosya Bilgi Detay Modalı */}
       <FileDetailsModal
@@ -423,6 +496,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  notice2: { position: 'absolute', left: 16, right: 16, bottom: 24, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1 },
   notice: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   noticeTitle: { fontSize: 17, fontWeight: '700', marginTop: 14, textAlign: 'center' },
   noticeBody: { marginTop: 8, textAlign: 'center', lineHeight: 20, maxWidth: 340 },

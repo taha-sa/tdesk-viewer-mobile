@@ -19,7 +19,7 @@ import { Colors } from './src/theme/colors';
 import { resolveTheme, nextTheme } from './src/theme/themeOptions';
 import { DEFAULT_SYNTAX_THEME_ID, isSyntaxThemeId } from './src/theme/syntaxThemes';
 import { FileService, STORAGE_KEYS } from './src/services/fileService';
-import { autoCheckAndPrompt } from './src/services/updateService';
+import { autoCheckAndPrompt, promptUpdateNow } from './src/services/updateService';
 import { authenticate, getLockAvailability, loadLockEnabled, saveLockEnabled } from './src/services/appLock';
 import { parseStoredSettings, serializeSettings, shouldRelock, DEFAULT_SETTINGS } from './src/utils/appSettings';
 
@@ -124,6 +124,16 @@ function AppShell() {
     let isMounted = true;
 
     const openIncoming = async (url: string | null | undefined) => {
+      // T-Bridge derin bağlantısı: güncelleme ekranı (Ayarlar + denetim penceresi).
+      if (url && /^tdeskviewer:\/\/update\/?(\?.*)?$/i.test(url)) {
+        if (isMounted) {
+          setFileStack([]);
+          setActiveFile(null);
+          setCurrentTab('settings');
+          void promptUpdateNow();
+        }
+        return;
+      }
       if (!url || !FileService.isSupportedFileUri(url)) return;
       try {
         const file = await FileService.handleIncomingUri(url);

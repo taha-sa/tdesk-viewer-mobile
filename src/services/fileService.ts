@@ -1131,6 +1131,41 @@ export class FileService {
     }
   }
 
+  /**
+   * Dosyanın gerçek adıyla geçici bir kopyasını (cache/export/<zaman>/<ad>) yazar ve file:// yolunu döndürür; yapılamazsa null.
+   * T-Bridge'e gönderme / sunum için kullanılır (alıcı doğru dosya adını görsün).
+   */
+  public static async exportCopy(file: FileInfo): Promise<string | null> {
+    try {
+      const cacheDir = FileSystem.cacheDirectory;
+      if (!cacheDir) return null;
+      const ext = file.extension || getExtension(file.name);
+      const root = `${cacheDir}export/`;
+      try { await FileSystem.deleteAsync(root, { idempotent: true }); } catch { /* eski kopyalar */ }
+      const dir = `${root}${Date.now()}/`;
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+      let name = String(file.originalName || file.name || 'belge').replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_').trim().slice(0, 120) || 'belge';
+      if (ext && !name.toLowerCase().endsWith(`.${ext.toLowerCase()}`) && !/\.[A-Za-z0-9]{1,8}$/.test(name)) name += `.${ext}`;
+      const dest = `${dir}${name}`;
+      const uri = file.uri;
+      if (!file.isSample && !isVirtualUri(uri) && (uri.startsWith('content://') || uri.startsWith('file://'))) {
+        await FileSystem.copyAsync({ from: uri, to: dest });
+      } else if (typeof file.content === 'string') {
+        await FileSystem.writeAsStringAsync(dest, file.content, { encoding: FileSystem.EncodingType.UTF8 });
+      } else if (typeof file.base64 === 'string') {
+        await FileSystem.writeAsStringAsync(dest, file.base64, { encoding: FileSystem.EncodingType.Base64 });
+      } else if (!isVirtualUri(uri) && !uri.startsWith('content://')) {
+        await FileSystem.copyAsync({ from: uri, to: dest });
+      } else {
+        return null;
+      }
+      return dest;
+    } catch (e) {
+      logError('Dışa aktarma kopyası hatası.', e);
+      return null;
+    }
+  }
+
   /** Yazdırma (Print Service) entegrasyonu. */
   public static async printDocument(_title: string, htmlContent: string): Promise<void> {
     try {
