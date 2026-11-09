@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- T-Bridge (app.kopru) görünürlüğü: kurulu mu sorgusu, servis bağlama, paylaşım hedefi -->
+  <queries>
+    <package android:name="app.kopru" />
+  </queries>
+</manifest>

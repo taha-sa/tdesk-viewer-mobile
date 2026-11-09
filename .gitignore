@@ -10,6 +10,9 @@ web-build/
 
 # Yerel derleme ve imzalama
 android/
+!modules/*/android/
+modules/*/android/build/
+modules/*/android/.gradle/
 ios/
 *.jks
 *.p8
