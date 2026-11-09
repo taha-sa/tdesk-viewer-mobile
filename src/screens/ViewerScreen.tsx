@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Alert, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, ActivityIndicator, Alert, BackHandler, AppState } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
 import { FileInfo, AppThemeMode, SyntaxTheme } from '../types';
@@ -9,7 +9,7 @@ import { FileDetailsModal } from '../components/FileDetailsModal';
 import { FileService } from '../services/fileService';
 import { ViewerErrorBoundary } from '../components/ViewerErrorBoundary';
 import { readTextFileSmart, TextReadError } from '../utils/textEncoding';
-import { BridgeSheet } from '../components/BridgeSheet';
+import { BridgeSheet, BridgeInvite } from '../components/BridgeSheet';
 import { PresenterRemote } from '../components/PresenterRemote';
 import { isBridgeInstalled, canPresent, canSendToPc, sendToPc, presentOnPc } from '../services/bridgeService';
 
@@ -61,8 +61,14 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
   const [gate, setGate] = useState<Gate>(() => (needsPreload(initialFile) ? { kind: 'loading' } : { kind: 'ready', file: initialFile }));
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [sharing, setSharing] = useState<boolean>(false);
-  // T-Bridge entegrasyonu: yalnızca T-Bridge kuruluysa "Bilgisayar" düğmesi görünür.
-  const [bridgeInstalled] = useState<boolean>(() => isBridgeInstalled());
+  const [bridgeInstalled, setBridgeInstalled] = useState<boolean>(() => isBridgeInstalled());
+  const [bridgeInvite, setBridgeInvite] = useState<'send' | 'present' | null>(null);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') setBridgeInstalled(isBridgeInstalled());
+    });
+    return () => subscription.remove();
+  }, []);
   const [sheetOpen, setSheetOpen] = useState<boolean>(false);
   const [presenting, setPresenting] = useState<boolean>(false);
   const [presentStarting, setPresentStarting] = useState<boolean>(false);
@@ -319,12 +325,18 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
 
   const handleSendToPc = useCallback(async (f: FileInfo) => {
     setSheetOpen(false);
+    const installed = isBridgeInstalled();
+    setBridgeInstalled(installed);
+    if (!installed) { setBridgeInvite('send'); return; }
     const err = await sendToPc(f);
     showNotice(err ?? "T-Bridge'e iletildi; aktarım sonucunu T-Bridge'de görürsünüz.");
   }, [showNotice]);
 
   const startPresent = useCallback(async (f: FileInfo) => {
     setSheetOpen(false);
+    const installed = isBridgeInstalled();
+    setBridgeInstalled(installed);
+    if (!installed) { setBridgeInvite('present'); return; }
     setPresenting(true);
     setPresentStarting(true);
     setPresentError(null);
@@ -366,7 +378,19 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
         </View>
 
         <View style={styles.headerActions}>
-          {bridgeInstalled && canSendToPc(currentFile) && gate.kind === 'ready' && (
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: currentColors.primaryGlow, borderRadius: 12 }]}
+            onPress={() => { void handleSendToPc(currentFile); }}
+            disabled={!canSendToPc(currentFile) || gate.kind !== 'ready'}
+            accessibilityRole="button"
+            accessibilityLabel="Bilgisayara gönder"
+            accessibilityHint={!bridgeInstalled ? "T-Bridge'i edinme seçeneklerini açar" : undefined}
+            accessibilityState={{ disabled: !canSendToPc(currentFile) || gate.kind !== 'ready' }}
+          >
+            <Ionicons name="paper-plane-outline" size={21} color={currentColors.primary} />
+            {!bridgeInstalled && <View style={[styles.lockBadge, { backgroundColor: currentColors.surface }]}><Ionicons name="lock-closed" size={11} color={currentColors.text} /></View>}
+          </TouchableOpacity>
+          {canSendToPc(currentFile) && gate.kind === 'ready' && (
             <TouchableOpacity
               style={styles.actionBtn}
               onPress={() => setSheetOpen(true)}
@@ -428,6 +452,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
         appTheme={appTheme}
         fileName={currentFile.name}
         canPresent={canPresent(currentFile)}
+        locked={!bridgeInstalled}
         onSend={() => { void handleSendToPc(currentFile); }}
         onPresent={() => { void startPresent(currentFile); }}
         onClose={() => setSheetOpen(false)}
@@ -492,6 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  lockBadge: { position: 'absolute', right: 4, bottom: 4, borderRadius: 8, padding: 2 },
   viewerContainer: {
     flex: 1,
   },

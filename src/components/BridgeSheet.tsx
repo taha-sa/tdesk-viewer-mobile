@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppThemeMode } from '../types';
@@ -11,13 +11,14 @@ interface BridgeSheetProps {
   fileName: string;
   /** pdf/pptx ise "Bilgisayarda sun" seçeneği gösterilir. */
   canPresent: boolean;
+  locked: boolean;
   onSend: () => void;
   onPresent: () => void;
   onClose: () => void;
 }
 
-/** "Bilgisayar" eylemleri: T-Bridge ile PC'ye gönder / PC'de sun. Yalnızca T-Bridge kuruluyken açılır. */
-export const BridgeSheet: React.FC<BridgeSheetProps> = ({ visible, appTheme, fileName, canPresent, onSend, onPresent, onClose }) => {
+/** "Bilgisayar" eylemleri: T-Bridge ile PC'ye gönder / PC'de sun. */
+export const BridgeSheet: React.FC<BridgeSheetProps> = ({ visible, appTheme, fileName, canPresent, locked, onSend, onPresent, onClose }) => {
   const c = Colors[appTheme] || Colors.dark;
   const insets = useSafeAreaInsets();
   return (
@@ -28,9 +29,9 @@ export const BridgeSheet: React.FC<BridgeSheetProps> = ({ visible, appTheme, fil
           <Text style={[styles.title, { color: c.text }]}>Bilgisayar</Text>
           <Text style={[styles.sub, { color: c.textMuted }]} numberOfLines={1}>{fileName}</Text>
 
-          <Row c={c} icon="paper-plane-outline" title="Bilgisayara gönder" desc="Dosyayı T-Bridge ile PC'ye aktarır." onPress={onSend} />
+          <Row c={c} icon="paper-plane-outline" title="Bilgisayara gönder" desc="Dosyayı T-Bridge ile PC'ye aktarır." locked={locked} onPress={onSend} />
           {canPresent && (
-            <Row c={c} icon="easel-outline" title="Bilgisayarda sun" desc="PC'de tam ekran açar; telefon kumanda olur." onPress={onPresent} />
+            <Row c={c} icon="easel-outline" title="Bilgisayarda sun" desc="PC'de tam ekran açar; telefon kumanda olur." locked={locked} onPress={onPresent} />
           )}
           <TouchableOpacity style={styles.cancel} onPress={onClose} accessibilityRole="button">
             <Text style={[styles.cancelText, { color: c.textSecondary }]}>Vazgeç</Text>
@@ -41,7 +42,7 @@ export const BridgeSheet: React.FC<BridgeSheetProps> = ({ visible, appTheme, fil
   );
 };
 
-const Row: React.FC<{ c: ReturnType<typeof pick>; icon: React.ComponentProps<typeof Ionicons>['name']; title: string; desc: string; onPress: () => void }> = ({ c, icon, title, desc, onPress }) => (
+const Row: React.FC<{ c: ReturnType<typeof pick>; icon: React.ComponentProps<typeof Ionicons>['name']; title: string; desc: string; locked: boolean; onPress: () => void }> = ({ c, icon, title, desc, locked, onPress }) => (
   <TouchableOpacity
     style={[styles.row, { backgroundColor: c.card, borderColor: c.cardBorder }]}
     onPress={onPress}
@@ -56,13 +57,40 @@ const Row: React.FC<{ c: ReturnType<typeof pick>; icon: React.ComponentProps<typ
       <Text style={[styles.rowTitle, { color: c.text }]}>{title}</Text>
       <Text style={[styles.rowDesc, { color: c.textSecondary }]}>{desc}</Text>
     </View>
-    <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+    <Ionicons name={locked ? "lock-closed" : "chevron-forward"} size={18} color={c.textMuted} />
   </TouchableOpacity>
 );
+
+export const BridgeInvite: React.FC<{ kind: 'send' | 'present' | null; appTheme: AppThemeMode; onClose: () => void }> = ({ kind, appTheme, onClose }) => {
+  const c = Colors[appTheme] || Colors.dark;
+  return (
+    <Modal visible={kind !== null} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={styles.dialogBackdrop}>
+        <View style={[styles.dialog, { backgroundColor: c.surface, borderColor: c.border }]} accessibilityViewIsModal>
+          <TouchableOpacity style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel="Kapat">
+            <Ionicons name="close" size={24} color={c.textSecondary} />
+          </TouchableOpacity>
+          <Text style={[styles.dialogTitle, { color: c.text }]}>{kind === 'present' ? 'Sunumunuzu telefondan yönetin' : 'Belgeyi bilgisayarınıza gönderin'}</Text>
+          <Text style={[styles.dialogBody, { color: c.textSecondary }]}>{kind === 'present' ? 'T-Bridge ile sunumu bilgisayarda açın, slaytları telefonunuzdan ileri-geri alın.' : 'T-Bridge ile bu belgeyi tek dokunuşla bilgisayarınıza gönderebilir, sunumlarınızı telefondan yönetebilirsiniz.'}</Text>
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: c.primary }]} onPress={() => { void Linking.openURL('https://github.com/taha-sa/t-bridge-releases/releases/latest').catch(() => {}); }} accessibilityRole="button" accessibilityLabel="T-Bridge'i edin">
+            <Text style={[styles.primaryText, { color: c.onPrimary }]}>T-Bridge'i edin</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 const pick = (t: AppThemeMode) => Colors[t];
 
 const styles = StyleSheet.create({
+  dialogBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 24 },
+  dialog: { borderRadius: 20, borderWidth: 1, padding: 20, gap: 14 },
+  close: { alignSelf: 'flex-end', padding: 4 },
+  dialogTitle: { fontSize: 18, fontWeight: '800' },
+  dialogBody: { fontSize: 14, lineHeight: 21 },
+  primaryButton: { borderRadius: 12, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { fontSize: 15, fontWeight: '700' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderBottomWidth: 0, padding: 16, gap: 10 },
   grip: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 6 },
