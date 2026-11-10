@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import { t } from '../i18n';
+import { recordError } from '../services/crashService';
 
 interface Props {
   children: React.ReactNode;
@@ -36,6 +37,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error(`[${this.props.logTag || 'T-DESK-ERROR'}]`, error, info.componentStack);
+    void recordError(error, false, info.componentStack ?? undefined);
   }
 
   componentDidUpdate(previousProps: Props) {

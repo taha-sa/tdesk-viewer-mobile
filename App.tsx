@@ -33,6 +33,11 @@ import { ToolsScreen } from './src/screens/ToolsScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { LockScreen } from './src/components/LockScreen';
 import { t } from './src/i18n';
+import { CrashReportSheet } from './src/components/CrashReportSheet';
+import { installCrashHandlers, loadAutoReport, loadPendingCrash, clearPendingCrash } from './src/services/crashService';
+import type { CrashRecord } from './src/utils/crashReport';
+
+installCrashHandlers();
 
 type TabRoute = 'home' | 'browser' | 'tools' | 'settings';
 
@@ -64,6 +69,7 @@ function AppShell() {
   setActiveLanguage(activeLang);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [pendingCrash, setPendingCrash] = useState<CrashRecord | null>(null);
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
 
   const appTheme = resolveTheme(themePreference, systemScheme);
@@ -103,6 +109,18 @@ function AppShell() {
     updateCheckedRef.current = true;
     const t = setTimeout(() => { void autoCheckAndPrompt(); }, 3000);
     return () => clearTimeout(t);
+  }, [settingsLoaded, locked]);
+
+  // Önceki oturumdan kalan (maskelenmiş) hata kaydı varsa, kilit açıldıktan sonra önizleme sayfası gösterilir.
+  const crashCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!settingsLoaded || locked || crashCheckedRef.current) return;
+    crashCheckedRef.current = true;
+    void (async () => {
+      if (!(await loadAutoReport())) return;
+      const rec = await loadPendingCrash();
+      if (rec) setPendingCrash(rec);
+    })();
   }, [settingsLoaded, locked]);
 
   useEffect(() => {
@@ -418,6 +436,12 @@ function AppShell() {
           </TouchableOpacity>
         </View>
       )}
+
+      <CrashReportSheet
+        record={pendingCrash}
+        appTheme={appTheme}
+        onClose={() => { setPendingCrash(null); void clearPendingCrash(); }}
+      />
 
       {/* Kilit etkinken uygulama arka plandayken içerik görünmesin (iOS uygulama değiştirici vb.) */}
       {showCover && <View style={[StyleSheet.absoluteFill, { backgroundColor: currentColors.background }]} pointerEvents="auto" />}

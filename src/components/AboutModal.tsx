@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking, ScrollView, Animated, Alert, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, Modal, TouchableOpacity, Linking, ScrollView, Animated, Alert, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
@@ -54,9 +54,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
           accessibilityViewIsModal
         >
           <View style={styles.header}>
-            <View style={[styles.logoSquircle, { backgroundColor: currentColors.primary, borderColor: currentColors.primary }]}>
-              <Text style={[styles.logoText, { color: currentColors.onPrimary }]}>T/</Text>
-            </View>
+            <Image source={require('../../assets/family/t-desk-viewer.png')} style={styles.logoImage} accessibilityIgnoresInvertColors />
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: currentColors.text }]} accessibilityRole="header">{APP_DISPLAY_NAME}</Text>
               <Text style={[styles.version, { color: currentColors.primary }]}>{t('settings.version', { version: getAppVersion() })}</Text>
@@ -179,6 +177,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
+  logoImage: { width: 54, height: 54, borderRadius: 16 },
   logoText: {
     color: '#FFFFFF',
     fontSize: 24,

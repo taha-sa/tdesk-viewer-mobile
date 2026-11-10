@@ -8,7 +8,8 @@ import { FileService } from '../services/fileService';
 import { checkForUpdate, openUpdate, formatUpdateMessage, fetchCodeUpdate, restartApp } from '../services/updateService';
 import { loadPdfEngine, savePdfEngine, PdfEngine } from '../utils/pdfEngine';
 import { getLockAvailability, LockAvailability } from '../services/appLock';
-import { APP_DISPLAY_NAME, getAppVersion } from '../utils/appInfo';
+import { getAppVersion } from '../utils/appInfo';
+import { AboutSection } from '../components/AboutSection';
 import { AppThemeMode, SyntaxTheme, ThemePreference } from '../types';
 import { t, LanguagePref } from '../i18n';
 
@@ -412,14 +413,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.aboutBox} accessible accessibilityLabel={t('settings.aboutA11y', { app: APP_DISPLAY_NAME, version: getAppVersion() })}>
-          <View style={[styles.aboutLogoSquircle, { backgroundColor: currentColors.primary }]}>
-            <Text style={[styles.aboutLogoText, { color: currentColors.onPrimary }]}>T/</Text>
-          </View>
-          <Text style={[styles.brandName, { color: currentColors.primary }]}>{APP_DISPLAY_NAME}</Text>
-          <Text style={[styles.brandVersion, { color: currentColors.textSecondary }]}>{t('settings.version', { version: getAppVersion() })}</Text>
-          <Text style={[styles.copyright, { color: currentColors.textSecondary }]}>{t('settings.copyright')}</Text>
-        </View>
+        <AboutSection appTheme={appTheme} />
         <View style={{ height: 50 }} />
       </ScrollView>
     </View>
