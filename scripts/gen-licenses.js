@@ -28,7 +28,19 @@ for (const [p, entry] of Object.entries(lock.packages || {})) {
 }
 const list = [...seen.values()].sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
 const outDir = path.join(root, 'src', 'data');
+const outFile = path.join(outDir, 'licenses.json');
+const next = JSON.stringify(list) + '\n';
+if (process.argv.includes('--check')) {
+  // CI: licenses.json güncel değilse hata ver (yazmaz). CI'da node_modules kurulu olmalı (npm ci).
+  const cur = fs.existsSync(outFile) ? fs.readFileSync(outFile, 'utf8') : '';
+  if (cur.replace(/\r\n/g, '\n') !== next) {
+    console.error('src/data/licenses.json eski: `node scripts/gen-licenses.js` çalıştırıp commit edin.');
+    process.exit(1);
+  }
+  console.log('licenses.json güncel');
+  process.exit(0);
+}
 fs.mkdirSync(outDir, { recursive: true });
-fs.writeFileSync(path.join(outDir, 'licenses.json'), JSON.stringify(list) + '\n');
+fs.writeFileSync(outFile, next);
 const unknown = list.filter((x) => x.license === 'UNKNOWN').length;
 console.log(`licenses.json: ${list.length} paket (${unknown} lisans bilinmiyor)`);
