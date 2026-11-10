@@ -818,6 +818,7 @@
     "noResults": "No results",
     "prevMatch": "Previous match",
     "prevResult": "Previous result",
+    "searchInDoc": "Search in document",
     "searchInTextA11y": "Search in text",
     "searchPlaceholder": "Search…",
     "searchScoped": "Search ({scope})",

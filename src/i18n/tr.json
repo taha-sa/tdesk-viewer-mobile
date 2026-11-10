@@ -818,6 +818,7 @@
     "noResults": "Sonuç yok",
     "prevMatch": "Önceki eşleşme",
     "prevResult": "Önceki sonuç",
+    "searchInDoc": "Belgede ara",
     "searchInTextA11y": "Metin içinde ara",
     "searchPlaceholder": "Ara…",
     "searchScoped": "Ara ({scope})",
