@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FileType, AppThemeMode } from '../types';
 import { getFormatColors } from '../theme/colors';
+import { t } from '../i18n';
 
 interface FormatBadgeProps {
   type: FileType;
@@ -26,7 +27,7 @@ export const FormatBadge: React.FC<FormatBadgeProps> = ({
   return (
     <View
       accessible
-      accessibilityLabel={`${label} biçimi`}
+      accessibilityLabel={t('format.badgeA11y', { label })}
       style={[
         styles.badge,
         { backgroundColor: config.bg },

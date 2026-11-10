@@ -6,6 +6,7 @@ import { Colors, getFormatColors } from '../theme/colors';
 import { FormatBadge } from './FormatBadge';
 import { FileService } from '../services/fileService';
 import { CATEGORY_LABELS, formatShortDate } from '../utils/fileList';
+import { t } from '../i18n';
 
 interface FileCardProps {
   file: FileInfo;
@@ -51,8 +52,8 @@ const FileCardBase: React.FC<FileCardProps> = ({ file, theme = 'emerald', onPres
     CATEGORY_LABELS[file.category] ?? '',
     sizeText,
     dateText,
-    isFav ? 'favori' : '',
-    file.missing ? 'cihazda bulunamadı' : '',
+    isFav ? t('fileCard.favorite') : '',
+    file.missing ? t('fileCard.missingA11y') : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -74,7 +75,7 @@ const FileCardBase: React.FC<FileCardProps> = ({ file, theme = 'emerald', onPres
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityLabel={a11yLabel}
-        accessibilityHint={file.missing ? 'Dosya bulunamadı, seçenekleri göster' : 'Dosyayı açar'}
+        accessibilityHint={file.missing ? t('fileCard.missingHint') : t('fileCard.openHint')}
       >
         <View style={[styles.iconContainer, { backgroundColor: currentColors.surface }]}>
           <MaterialCommunityIcons name={CATEGORY_ICONS[file.category] ?? 'file-document-outline'} size={26} color={iconColor} />
@@ -87,7 +88,7 @@ const FileCardBase: React.FC<FileCardProps> = ({ file, theme = 'emerald', onPres
             </Text>
             {file.isSample && (
               <View style={[styles.samplePill, { backgroundColor: currentColors.primaryGlow }]}>
-                <Text style={[styles.samplePillText, { color: currentColors.primary }]}>ÖRNEK</Text>
+                <Text style={[styles.samplePillText, { color: currentColors.primary }]}>{t('fileCard.sample')}</Text>
               </View>
             )}
           </View>
@@ -101,7 +102,7 @@ const FileCardBase: React.FC<FileCardProps> = ({ file, theme = 'emerald', onPres
           {file.missing ? (
             <View style={styles.missingRow}>
               <Ionicons name="alert-circle-outline" size={13} color={currentColors.warning} />
-              <Text style={[styles.missingText, { color: currentColors.warning }]}>Cihazda bulunamadı</Text>
+              <Text style={[styles.missingText, { color: currentColors.warning }]}>{t('fileCard.missing')}</Text>
             </View>
           ) : null}
 
@@ -126,7 +127,7 @@ const FileCardBase: React.FC<FileCardProps> = ({ file, theme = 'emerald', onPres
           onPress={() => onToggleFavorite(file)}
           hitSlop={HIT_SLOP}
           accessibilityRole="button"
-          accessibilityLabel={isFav ? `${file.name} favorilerden çıkar` : `${file.name} favorilere ekle`}
+          accessibilityLabel={isFav ? t('fileCard.removeFavA11y', { name: file.name }) : t('fileCard.addFavA11y', { name: file.name })}
           accessibilityState={{ selected: isFav }}
         >
           <Ionicons name={isFav ? 'star' : 'star-outline'} size={20} color={isFav ? currentColors.warning : currentColors.textMuted} />
@@ -139,7 +140,7 @@ const FileCardBase: React.FC<FileCardProps> = ({ file, theme = 'emerald', onPres
           onPress={() => onOptionsPress(file)}
           hitSlop={HIT_SLOP}
           accessibilityRole="button"
-          accessibilityLabel={`${file.name} seçenekleri`}
+          accessibilityLabel={t('fileCard.optionsA11y', { name: file.name })}
         >
           <Ionicons name="ellipsis-vertical" size={19} color={currentColors.textMuted} />
         </TouchableOpacity>

@@ -18,6 +18,7 @@ import { Colors } from '../theme/colors';
 import { FormatBadge } from '../components/FormatBadge';
 import { FileService, getBaseName, getExtension, toCacheFileName, base64ToBytes } from '../services/fileService';
 import { DEFAULT_MAX_TEXT_BYTES, decodeTextBytes, isLikelyBinary } from '../utils/textEncoding';
+import { t, makeRef, formatDateParts } from '../i18n';
 
 interface ArchiveViewerProps {
   file: FileInfo;
@@ -278,19 +279,19 @@ class ArchiveError extends Error {
 function formatKindMessage(kind: ArchiveKind): string | null {
   switch (kind) {
     case 'rar':
-      return 'RAR arşivleri bu uygulamada açılamıyor. Dosyayı paylaşarak RAR destekleyen başka bir uygulamada açabilirsiniz.';
+      return t('archive.rar');
     case '7z':
-      return '7z arşivleri bu uygulamada açılamıyor. Dosyayı paylaşarak 7z destekleyen başka bir uygulamada açabilirsiniz.';
+      return t('archive.sevenZ');
     case 'gzip':
-      return 'GZ / TGZ arşivleri bu uygulamada açılamıyor. Yalnızca ZIP arşivleri desteklenir.';
+      return t('archive.gz');
     case 'bzip2':
-      return 'BZ2 arşivleri bu uygulamada açılamıyor. Yalnızca ZIP arşivleri desteklenir.';
+      return t('archive.bz2');
     case 'xz':
-      return 'XZ arşivleri bu uygulamada açılamıyor. Yalnızca ZIP arşivleri desteklenir.';
+      return t('archive.xz');
     case 'tar':
-      return 'TAR arşivleri bu uygulamada açılamıyor. Yalnızca ZIP arşivleri desteklenir.';
+      return t('archive.tar');
     case 'ole':
-      return 'Bu dosya ZIP değil (eski Office / parolalı belge kapsayıcısı). Arşiv olarak açılamaz.';
+      return t('archive.ole');
     default:
       return null;
   }
@@ -320,22 +321,22 @@ function kindFromExtension(ext: string): ArchiveKind {
 
 async function readArchiveBase64(file: FileInfo): Promise<string> {
   if (file.size > MAX_ARCHIVE_BYTES) {
-    throw new ArchiveError('too_large', `Arşiv çok büyük (${FileService.formatFileSize(file.size)}). En fazla ${FileService.formatFileSize(MAX_ARCHIVE_BYTES)} desteklenir.`);
+    throw new ArchiveError('too_large', t('archive.tooLarge', { size: FileService.formatFileSize(file.size), max: FileService.formatFileSize(MAX_ARCHIVE_BYTES) }));
   }
   if (file.uri && !FileService.isVirtualUri(file.uri)) {
     try {
       const info = await FileSystem.getInfoAsync(file.uri);
       if (info.exists && typeof info.size === 'number' && info.size > MAX_ARCHIVE_BYTES) {
-        throw new ArchiveError('too_large', `Arşiv çok büyük (${FileService.formatFileSize(info.size)}). En fazla ${FileService.formatFileSize(MAX_ARCHIVE_BYTES)} desteklenir.`);
+        throw new ArchiveError('too_large', t('archive.tooLarge', { size: FileService.formatFileSize(info.size), max: FileService.formatFileSize(MAX_ARCHIVE_BYTES) }));
       }
       return await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
     } catch (e) {
       if (e instanceof ArchiveError) throw e;
-      if (!file.base64) throw new ArchiveError('read_failed', 'Arşiv dosyası okunamadı. Dosya silinmiş veya erişilemiyor olabilir.');
+      if (!file.base64) throw new ArchiveError('read_failed', t('archive.readFailDeleted'));
     }
   }
   if (file.base64) return file.base64;
-  throw new ArchiveError('read_failed', 'Arşiv dosyası okunamadı.');
+  throw new ArchiveError('read_failed', t('archive.readFail'));
 }
 
 interface LoadedArchive {
@@ -353,7 +354,7 @@ function pad2(n: number): string {
 
 function formatDate(d: Date | undefined | null): string {
   if (!d || !(d instanceof Date) || isNaN(d.getTime())) return '—';
-  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+  return formatDateParts(d);
 }
 
 function entryUncompressedSize(zipEntry: unknown): number {
@@ -382,9 +383,9 @@ async function loadArchive(file: FileInfo): Promise<LoadedArchive> {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/encrypt/i.test(msg)) {
-      throw new ArchiveError('encrypted', 'Bu ZIP arşivi parola ile korunuyor. Parolalı arşivler bu uygulamada açılamıyor.');
+      throw new ArchiveError('encrypted', t('archive.encrypted'));
     }
-    throw new ArchiveError('corrupt', 'Arşiv bozuk veya geçerli bir ZIP dosyası değil.');
+    throw new ArchiveError('corrupt', t('archive.corrupt'));
   }
 
   const keys = Object.keys(zip.files);
@@ -477,7 +478,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
       .catch((err) => {
         if (cancelled) return;
         const message =
-          err instanceof ArchiveError ? err.message : 'Arşiv açılamadı. Dosya bozuk veya desteklenmeyen bir biçimde olabilir.';
+          err instanceof ArchiveError ? err.message : t('archive.openFail');
         if (__DEV__) console.warn('Arşiv yükleme hatası:', err);
         setLoadError(message);
         setLoading(false);
@@ -556,20 +557,20 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
       if (openingRef.current) return;
       const zip = zipRef.current;
       if (!zip) {
-        Alert.alert('Hata', 'Arşiv artık bellekte değil. Lütfen dosyayı yeniden açın.');
+        Alert.alert(t('common.error'), t('archive.notInMemory'));
         return;
       }
       if (!onOpenNestedFile) {
-        Alert.alert('Açılamıyor', 'Bu ekranda arşiv içindeki dosyalar açılamıyor.');
+        Alert.alert(t('archive.cannotOpenTitle'), t('archive.cannotOpenBody'));
         return;
       }
       const zipFile = zip.file(entry.sourcePath);
       if (!zipFile) {
-        Alert.alert('Dosya bulunamadı', `"${entry.name}" arşiv içinde bulunamadı veya okunamıyor.`);
+        Alert.alert(t('common.fileNotFound'), t('archive.entryMissing', { name: entry.name }));
         return;
       }
       if (entry.size > MAX_ENTRY_BYTES) {
-        Alert.alert('Dosya çok büyük', `"${entry.name}" ${FileService.formatFileSize(entry.size)}; arşivden en fazla ${FileService.formatFileSize(MAX_ENTRY_BYTES)} açılabilir.`);
+        Alert.alert(t('viewer.tooBigTitle'), t('archive.entryTooLarge', { name: entry.name, size: FileService.formatFileSize(entry.size), max: FileService.formatFileSize(MAX_ENTRY_BYTES) }));
         return;
       }
 
@@ -603,18 +604,18 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
         const isTextual = category === 'code' || category === 'markdown' || category === 'text' || category === 'unknown' || (category === 'image' && ext === 'svg');
         if (isTextual) {
           if (entry.size > DEFAULT_MAX_TEXT_BYTES) {
-            Alert.alert('Dosya çok büyük', `Metin dosyası ${FileService.formatFileSize(entry.size)}; en fazla ${FileService.formatFileSize(DEFAULT_MAX_TEXT_BYTES)} açılabilir.`);
+            Alert.alert(t('viewer.tooBigTitle'), t('archive.textTooLarge', { size: FileService.formatFileSize(entry.size), max: FileService.formatFileSize(DEFAULT_MAX_TEXT_BYTES) }));
             return;
           }
           const bytes = await zipFile.async('uint8array');
           if (!mountedRef.current) return;
           if (bytes.length > DEFAULT_MAX_TEXT_BYTES) {
-            Alert.alert('Dosya çok büyük', `Metin dosyası ${FileService.formatFileSize(bytes.length)}; en fazla ${FileService.formatFileSize(DEFAULT_MAX_TEXT_BYTES)} açılabilir.`);
+            Alert.alert(t('viewer.tooBigTitle'), t('archive.textTooLarge', { size: FileService.formatFileSize(bytes.length), max: FileService.formatFileSize(DEFAULT_MAX_TEXT_BYTES) }));
             return;
           }
           if (category === 'unknown' && isLikelyBinary(bytes)) {
             category = 'unsupported';
-            unsupportedReason = 'Bu dosyanın türü tanınmadı (ikili içerik). Metin olarak açılamaz.';
+            unsupportedReason = makeRef('archive.unknownBinary');
             onOpenNestedFile({ ...base, size: bytes.length, category, unsupportedReason });
             return;
           }
@@ -630,7 +631,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
 
         // İkili öğe (pdf/docx/xlsx/pptx/epub/görsel/iç arşiv): önbelleğe yaz, o dosya yolundan aç.
         const cacheDir = FileSystem.cacheDirectory;
-        if (!cacheDir) throw new Error('Önbellek dizinine erişilemiyor.');
+        if (!cacheDir) throw new Error(t('archive.cacheDirFail'));
         const b64 = await zipFile.async('base64');
         if (!mountedRef.current) return;
         const cacheUri = `${cacheDir}nested_${Date.now()}_${toCacheFileName(getBaseName(entry.name))}`;
@@ -644,9 +645,9 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
         if (__DEV__) console.warn('Arşiv öğesi açılamadı:', err);
         const msg = err instanceof Error ? err.message : '';
         if (/encrypt/i.test(msg)) {
-          Alert.alert('Parolalı dosya', 'Bu öğe parola ile korunuyor ve açılamıyor.');
+          Alert.alert(t('archive.protectedTitle'), t('archive.protectedBody'));
         } else {
-          Alert.alert('Hata', 'Arşiv içindeki dosya çıkarılırken bir sorun oluştu.');
+          Alert.alert(t('common.error'), t('archive.extractFail'));
         }
       } finally {
         openingRef.current = false;
@@ -665,11 +666,11 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
             onPress={goUp}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Üst klasöre git"
+            accessibilityLabel={t('archive.upA11y')}
           >
             <View style={styles.entryLeft}>
               <Ionicons name="arrow-up-circle-outline" size={22} color={currentColors.primary} />
-              <Text style={[styles.entryPath, { color: currentColors.text }]}>.. (Üst klasör)</Text>
+              <Text style={[styles.entryPath, { color: currentColors.text }]}>{t('archive.up')}</Text>
             </View>
           </TouchableOpacity>
         );
@@ -684,7 +685,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
             }}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${item.name} klasörü, ${item.count} öğe`}
+            accessibilityLabel={t('archive.folderA11y', { name: item.name, count: item.count })}
           >
             <View style={styles.entryLeft}>
               <Ionicons name="folder" size={22} color={currentColors.warning} />
@@ -692,7 +693,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
                 <Text style={[styles.entryPath, { color: currentColors.text }]} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Text style={[styles.entrySub, { color: currentColors.textMuted }]}>{item.count} öğe</Text>
+                <Text style={[styles.entrySub, { color: currentColors.textMuted }]}>{t('archive.items', { count: item.count })}</Text>
               </View>
             </View>
             <Ionicons name="chevron-forward" size={16} color={currentColors.textMuted} />
@@ -707,7 +708,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
           onPress={() => openEntry(e)}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel={`${e.name}, ${sizeText}. Açmak için dokunun`}
+          accessibilityLabel={t('archive.entryA11y', { name: e.name, size: sizeText })}
         >
           <View style={styles.entryLeft}>
             <Ionicons name="document-text-outline" size={22} color={currentColors.primary} />
@@ -738,9 +739,9 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
   const searching = searchQuery.trim().length > 0;
   const fileCount = archive ? archive.entries.length : 0;
 
-  let emptyText = 'Bu klasör boş.';
-  if (searching) emptyText = 'Aramayla eşleşen öğe yok.';
-  else if (archive && archive.entries.length === 0 && archive.explicitDirs.length === 0) emptyText = 'Bu arşiv boş.';
+  let emptyText = t('archive.emptyFolder');
+  if (searching) emptyText = t('archive.noMatch');
+  else if (archive && archive.entries.length === 0 && archive.explicitDirs.length === 0) emptyText = t('archive.emptyArchive');
 
   return (
     <View style={[styles.container, { backgroundColor: currentColors.background }]}>
@@ -756,7 +757,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
           <View
             style={[styles.secureBadge, { backgroundColor: currentColors.primaryGlow }]}
             accessible
-            accessibilityLabel={`${archive.unsafeCount} öğenin yolu güvenlik için temizlendi`}
+            accessibilityLabel={t('archive.unsafeA11y', { count: archive.unsafeCount })}
           >
             <Ionicons name="shield-checkmark" size={12} color={currentColors.warning} />
             <Text style={[styles.secureText, { color: currentColors.warning }]}>{archive.unsafeCount} yol temizlendi</Text>
@@ -767,7 +768,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={currentColors.primary} />
-          <Text style={[styles.loadingText, { color: currentColors.textSecondary }]}>Arşiv açılıyor...</Text>
+          <Text style={[styles.loadingText, { color: currentColors.textSecondary }]}>{t('archive.opening')}</Text>
         </View>
       ) : loadError ? (
         <View style={styles.center}>
@@ -780,10 +781,10 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
             onPress={() => setReloadKey((k) => k + 1)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel="Yeniden dene"
+            accessibilityLabel={t('common.retry')}
           >
             <Ionicons name="refresh" size={16} color={currentColors.primary} />
-            <Text style={[styles.retryText, { color: currentColors.primary }]}>Yeniden dene</Text>
+            <Text style={[styles.retryText, { color: currentColors.primary }]}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -795,12 +796,12 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
               style={[styles.searchInput, { color: currentColors.text }]}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Arşivde ara"
+              placeholder={t('archive.searchPlaceholder')}
               placeholderTextColor={currentColors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
-              accessibilityLabel="Arşiv içinde dosya ara"
+              accessibilityLabel={t('archive.searchA11y')}
             />
             {searching ? (
               <TouchableOpacity
@@ -808,7 +809,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={styles.clearBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Aramayı temizle"
+                accessibilityLabel={t('search.clear')}
               >
                 <Ionicons name="close-circle" size={18} color={currentColors.textMuted} />
               </TouchableOpacity>
@@ -829,7 +830,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
                 hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                 style={styles.crumbBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Arşiv köküne git"
+                accessibilityLabel={t('archive.rootA11y')}
               >
                 <Ionicons name="home-outline" size={16} color={currentDir === '' ? currentColors.text : currentColors.primary} />
               </TouchableOpacity>
@@ -844,7 +845,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
                       hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
                       style={styles.crumbBtn}
                       accessibilityRole="button"
-                      accessibilityLabel={`${c.name} klasörüne git`}
+                      accessibilityLabel={t('archive.goFolderA11y', { name: c.name })}
                     >
                       <Text style={[styles.crumbText, { color: last ? currentColors.text : currentColors.primary, fontWeight: last ? '700' : '500' }]}>
                         {c.name}
@@ -858,12 +859,12 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
 
           <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>
             {searching
-              ? `ARAMA SONUÇLARI (${rows.length}${rows.length >= MAX_SEARCH_RESULTS ? '+' : ''})`
-              : `${fileCount} dosya${archive && archive.totalSize > 0 ? ` • ${FileService.formatFileSize(archive.totalSize)} (açılmış)` : ''}`}
+              ? t('archive.searchResults', { count: `${rows.length}${rows.length >= MAX_SEARCH_RESULTS ? '+' : ''}` })
+              : `${t('archive.fileCount', { count: fileCount })}${archive && archive.totalSize > 0 ? ` • ${t('archive.unpacked', { size: FileService.formatFileSize(archive.totalSize) })}` : ''}`}
           </Text>
           {archive && archive.truncated ? (
             <Text style={[styles.noteText, { color: currentColors.warning }]}>
-              Arşivde çok fazla öğe var; yalnızca ilk {MAX_ENTRIES} dosya listeleniyor.
+              {t('archive.truncated', { max: MAX_ENTRIES })}
             </Text>
           ) : null}
 
@@ -890,7 +891,7 @@ export const ArchiveViewer: React.FC<ArchiveViewerProps> = ({
         <View style={[styles.overlay, { backgroundColor: 'rgba(0,0,0,0.45)' }]} pointerEvents="auto" accessibilityLiveRegion="polite">
           <View style={[styles.overlayBox, { backgroundColor: currentColors.card, borderColor: currentColors.border }]}>
             <ActivityIndicator color={currentColors.primary} />
-            <Text style={[styles.loadingText, { color: currentColors.text, marginTop: 8 }]}>Dosya çıkarılıyor...</Text>
+            <Text style={[styles.loadingText, { color: currentColors.text, marginTop: 8 }]}>{t('archive.extracting')}</Text>
           </View>
         </View>
       ) : null}

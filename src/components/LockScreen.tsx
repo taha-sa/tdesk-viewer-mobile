@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import { authenticate } from '../services/appLock';
+import { t } from '../i18n';
 
 interface Props {
   appTheme: AppThemeMode;
@@ -33,7 +34,7 @@ export const LockScreen: React.FC<Props> = ({ appTheme, active, onUnlock, onDisa
     running.current = true;
     setBusy(true);
     setMessage('');
-    const r = await authenticate('T-Desk kilidini açın');
+    const r = await authenticate(t('lock.authPrompt'));
     running.current = false;
     finishedAt.current = Date.now();
     if (!mounted.current) {
@@ -44,7 +45,7 @@ export const LockScreen: React.FC<Props> = ({ appTheme, active, onUnlock, onDisa
     if (r.ok) {
       onUnlock();
     } else {
-      setMessage(r.message || 'Doğrulama başarısız oldu.');
+      setMessage(r.message || t('lock.authFailed'));
       setUnrecoverable(r.unrecoverable);
     }
   }, [onUnlock]);
@@ -59,9 +60,9 @@ export const LockScreen: React.FC<Props> = ({ appTheme, active, onUnlock, onDisa
       <View style={[styles.iconWrap, { backgroundColor: c.primaryGlow, borderColor: c.primary }]}>
         <Ionicons name="lock-closed" size={36} color={c.primary} />
       </View>
-      <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">T-Desk kilitli</Text>
+      <Text style={[styles.title, { color: c.text }]} accessibilityRole="header">{t('lock.title')}</Text>
       <Text style={[styles.desc, { color: c.textSecondary }]}>
-        Belgelerinize erişmek için kimliğinizi doğrulayın.
+        {t('lock.desc')}
       </Text>
       {message ? (
         <Text style={[styles.msg, { color: c.warning }]} accessibilityLiveRegion="polite">{message}</Text>
@@ -73,10 +74,10 @@ export const LockScreen: React.FC<Props> = ({ appTheme, active, onUnlock, onDisa
           style={[styles.btn, { backgroundColor: c.primary }]}
           onPress={() => void run()}
           accessibilityRole="button"
-          accessibilityLabel="Kilidi aç"
+          accessibilityLabel={t('lock.unlock')}
         >
           <Ionicons name="finger-print" size={20} color={c.onPrimary} />
-          <Text style={[styles.btnText, { color: c.onPrimary }]}>{message ? 'Tekrar dene' : 'Kilidi aç'}</Text>
+          <Text style={[styles.btnText, { color: c.onPrimary }]}>{message ? t('common.retry') : t('lock.unlock')}</Text>
         </TouchableOpacity>
       )}
       {unrecoverable && !busy ? (
@@ -84,9 +85,9 @@ export const LockScreen: React.FC<Props> = ({ appTheme, active, onUnlock, onDisa
           style={[styles.link, { borderColor: c.border }]}
           onPress={onDisableLock}
           accessibilityRole="button"
-          accessibilityLabel="Uygulama kilidini kapat"
+          accessibilityLabel={t('lock.turnOff')}
         >
-          <Text style={[styles.linkText, { color: c.text }]}>Uygulama kilidini kapat</Text>
+          <Text style={[styles.linkText, { color: c.text }]}>{t('lock.turnOff')}</Text>
         </TouchableOpacity>
       ) : null}
     </View>

@@ -32,6 +32,7 @@ import {
   EolStyle,
   TextReadError,
 } from '../utils/textEncoding';
+import { t, t as tr, formatInt } from '../i18n';
 
 interface SpreadsheetViewerProps {
   file: FileInfo;
@@ -385,19 +386,19 @@ export function coerceEdit(existing: RawCell | undefined, text: string): CoerceR
   const t = existing ? existing.t : undefined;
   if (existing && (t === 'd' || (t === 'n' && isDateFormat(existing.z)))) {
     const serial = parseDateText(text);
-    if (serial === null) return { ok: false, message: 'Bu hücre bir tarih. Geçerli biçim: 31.12.2024, 2024-12-31 veya 31.12.2024 14:30.' };
+    if (serial === null) return { ok: false, message: tr('sheet.errDate') };
     return { ok: true, cell: { t: 'n', v: serial, z: existing.z } };
   }
   if (existing && t === 'n') {
     const n = parseNumberText(text, existing.z);
-    if (n === null) return { ok: false, message: 'Bu hücre bir sayı. Geçerli bir sayı girin (örn. 1234,5 veya 12%).' };
+    if (n === null) return { ok: false, message: tr('sheet.errNumber') };
     return { ok: true, cell: { t: 'n', v: n, z: existing.z } };
   }
   if (existing && t === 'b') {
     const s = foldForSearch(text.trim());
     if (['true', 'doğru', 'dogru', '1', 'evet'].indexOf(s) >= 0) return { ok: true, cell: { t: 'b', v: true } };
     if (['false', 'yanlış', 'yanlis', '0', 'hayır', 'hayir'].indexOf(s) >= 0) return { ok: true, cell: { t: 'b', v: false } };
-    return { ok: false, message: 'Bu hücre mantıksal (DOĞRU/YANLIŞ). TRUE veya FALSE girin.' };
+    return { ok: false, message: tr('sheet.errBool') };
   }
   if (!existing || t === 'z') {
     if (/^[+-]?(\d+([.,]\d+)?|[.,]\d+)$/.test(text.trim())) {
@@ -572,7 +573,7 @@ function confirmAsync(title: string, message: string, okLabel: string): Promise<
       title,
       message,
       [
-        { text: 'Vazgeç', style: 'cancel', onPress: () => resolve(false) },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
         { text: okLabel, onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) }
@@ -617,8 +618,8 @@ const SheetRow = React.memo(function SheetRow({ cells, r, rowNumber, colCount, w
         ]}
         onPress={() => onPress(r, c)}
         accessibilityRole="button"
-        accessibilityLabel={`${letterOf(c)}${rowNumber}: ${val === '' ? 'boş' : val}`}
-        accessibilityHint="Hücre ayrıntılarını açar"
+        accessibilityLabel={t('sheet.cellA11y', { addr: `${letterOf(c)}${rowNumber}`, value: val === '' ? t('sheet.empty') : val })}
+        accessibilityHint={t('sheet.cellHint')}
       >
         <Text style={[styles.dataText, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">
           {val}
@@ -699,7 +700,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
         }
 
         if (typeof file.size === 'number' && file.size > MAX_XLSX_BYTES) {
-          throw new Error(`Dosya çok büyük (${formatBytes(file.size)}). Bu görüntüleyici en fazla ${formatBytes(MAX_XLSX_BYTES)} destekler.`);
+          throw new Error(t('sheet.tooLarge', { size: formatBytes(file.size), max: formatBytes(MAX_XLSX_BYTES) }));
         }
         let b64: string | undefined;
         if (!file.uri.includes('#')) { // yalnız 'zip#girdi' sanal adresleri diskten okunamaz; arşivden çıkarılan kopyalar normal dosyadır
@@ -710,7 +711,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           }
         }
         if (!b64) b64 = file.base64;
-        if (!b64) throw new Error('Dosya içeriği okunamadı.');
+        if (!b64) throw new Error(t('sheet.readFail'));
         if (cancelled) return;
         await delay(0);
         if (cancelled) return;
@@ -719,7 +720,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
         try {
           wb = XLSX.read(b64, { type: 'base64', cellFormula: true, cellDates: true, cellNF: true, cellText: true });
         } catch (e) {
-          throw new Error('Tablo ayrıştırılamadı. Dosya bozuk, şifreli veya desteklenmeyen bir biçimde olabilir.');
+          throw new Error(t('sheet.parseFail'));
         }
         if (cancelled) return;
         b64 = undefined;
@@ -731,7 +732,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           const hiddenFlag = !!metaSheets && !!metaSheets[i] && !!metaSheets[i].Hidden;
           list.push(buildGrid(name, hiddenFlag, ws as unknown as Record<string, unknown>, XLSX.utils));
         });
-        if (list.length === 0) throw new Error('Çalışma kitabında sayfa bulunamadı.');
+        if (list.length === 0) throw new Error(t('sheet.noSheets'));
         wbRef.current = wb;
         setGrids(list);
         const firstVisible = list.findIndex((g) => !g.hidden);
@@ -739,16 +740,16 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
         setStatus('ready');
       } catch (e) {
         if (cancelled) return;
-        let msg = e instanceof Error ? e.message : 'Tablo okunamadı.';
+        let msg = e instanceof Error ? e.message : t('sheet.readFailShort');
         if (e instanceof TextReadError) {
           msg =
             e.code === 'too_large'
-              ? `Dosya çok büyük${e.size ? ` (${formatBytes(e.size)})` : ''}. En fazla ${formatBytes(MAX_CSV_BYTES)} açılabilir.`
+              ? t('sheet.csvTooLarge', { sizeInfo: e.size ? ` (${formatBytes(e.size)})` : '', max: formatBytes(MAX_CSV_BYTES) })
               : e.code === 'binary'
-              ? 'Dosya metin gibi görünmüyor.'
+              ? t('sheet.notText')
               : e.code === 'not_found'
-              ? 'Dosya bulunamadı.'
-              : 'Dosya okunamadı.';
+              ? t('sheet.notFound')
+              : t('sheet.fileReadFail');
         }
         setErrorMsg(msg);
         setStatus('error');
@@ -896,14 +897,14 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
       const existing = ws ? (ws[selected.address] as RawCell | undefined) : undefined;
       const res = coerceEdit(existing, editValue);
       if (!res.ok) {
-        Alert.alert('Geçersiz değer', res.message || 'Değer bu hücre türüne uymuyor.');
+        Alert.alert(t('sheet.invalidTitle'), res.message || t('sheet.invalidBody'));
         return;
       }
       if (selected.formula) {
         const go = await confirmAsync(
-          'Formül silinecek',
-          `Bu hücre bir formül içeriyor (=${selected.formula}). Güncellerseniz formül kalkar ve hücre sabit değer olur.`,
-          'Yine de güncelle'
+          t('sheet.formulaDropTitle'),
+          t('sheet.formulaDropBody', { formula: selected.formula }),
+          t('sheet.updateAnyway')
         );
         if (!go) return;
       }
@@ -919,7 +920,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
       if (copiedTimer.current) clearTimeout(copiedTimer.current);
       copiedTimer.current = setTimeout(() => setCopied(false), 1600);
     } catch {
-      Alert.alert('Hata', 'Panoya kopyalanamadı.');
+      Alert.alert(t('common.error'), t('viewers.clipboardFail'));
     }
   };
 
@@ -927,17 +928,17 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
   const handleSave = async () => {
     if (readOnly || isSaving) return;
     if (pending.length === 0) {
-      Alert.alert('Değişiklik yok', 'Kaydedilecek bir değişiklik bulunmuyor.');
+      Alert.alert(t('sheet.noChangesTitle'), t('sheet.noChangesBody'));
       return;
     }
     if (!isCsv) {
       const warn =
         ext === 'xls'
-          ? 'Kaydetmek dosyayı yeniden yazar. Biçimlendirme, grafik, resim, koşullu biçim ve makrolar kaybolabilir.'
+          ? t('sheet.lossXls')
           : ext === 'xlsm'
-          ? 'Kaydetmek dosyayı yeniden yazar. Makrolar (VBA), grafikler, resimler ve biçimlendirmenin bir kısmı kaybolur.'
-          : 'Kaydetmek dosyayı yeniden yazar. Hücre stilleri, grafikler, resimler, koşullu biçim ve doğrulama kuralları kaybolabilir; yalnızca hücre değerleri ve formüller korunur.';
-      const ok = await confirmAsync('Kayıpla kaydedilsin mi?', warn, 'Kaydet');
+          ? t('sheet.lossXlsm')
+          : t('sheet.lossXlsx');
+      const ok = await confirmAsync(t('sheet.lossyTitle'), warn, t('common.save'));
       if (!ok) return;
     }
     setIsSaving(true);
@@ -946,7 +947,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
       if (isCsv) {
         const meta = csvRef.current;
         const g = grids[0];
-        if (!meta || !g) throw new Error('CSV verisi yüklenemedi.');
+        if (!meta || !g) throw new Error(t('sheet.csvLoadFail'));
         const text = serializeDelimited(g.cells, meta.delim, meta.eol === 'crlf' ? '\r\n' : meta.eol === 'cr' ? '\r' : '\n');
         const nonAscii = /[^\u0000-\u007f]/.test(text);
         let enc: TextEncodingName = meta.encoding;
@@ -954,22 +955,22 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
         if (!enc1.lossless) {
           enc = 'utf-8';
           enc1 = encodeTextBytes(text, 'utf-8', true);
-          note = '\nBazı karakterler özgün kodlamada yazılamadığı için dosya UTF-8 (BOM\'lu) olarak kaydedildi.';
+          note = t('sheet.utf8Note');
         }
         await writeFileAtomic(file.uri, bytesToBase64(enc1.bytes), 'base64');
       } else {
         const wb = wbRef.current;
-        if (!wb) throw new Error('Özgün çalışma kitabı yüklenemedi.');
+        if (!wb) throw new Error(t('sheet.wbLoadFail'));
         for (const edit of pending) {
           const g = grids[edit.sheetIdx];
-          if (!g) throw new Error('Sayfa bulunamadı.');
+          if (!g) throw new Error(t('sheet.sheetMissing'));
           const ws = wb.Sheets[g.name];
-          if (!ws) throw new Error(`Çalışma sayfası bulunamadı: ${g.name}`);
+          if (!ws) throw new Error(t('sheet.wsMissing', { name: g.name }));
           const addr = XLSX.utils.encode_cell({ r: g.startRow + edit.r, c: g.startCol + edit.c });
           const existing = ws[addr] as (XLSX.CellObject & RawCell) | undefined;
-          if (existing?.F) throw new Error('Dizi formülü içeren hücreler bu görüntüleyicide düzenlenemez.');
+          if (existing?.F) throw new Error(t('sheet.arrayFormula'));
           const res = coerceEdit(existing, edit.text);
-          if (!res.ok) throw new Error(`${addr}: ${res.message || 'geçersiz değer'}`);
+          if (!res.ok) throw new Error(t('sheet.cellError', { addr, message: res.message || t('sheet.invalidTitle') }));
           if (res.clear) {
             delete ws[addr];
             continue;
@@ -994,13 +995,13 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
       setPending([]);
       const isAppCopy = !!FileSystem.cacheDirectory && file.uri.startsWith(FileSystem.cacheDirectory);
       Alert.alert(
-        'Kaydedildi',
+        t('codeViewer.savedTitle'),
         (isAppCopy
-          ? 'Değişiklikler uygulama kopyasına kaydedildi. Orijinal dosyayı güncellemek için Paylaş düğmesinden dışa aktarın.'
-          : 'Değişiklikler dosyaya kaydedildi.') + note
+          ? t('codeViewer.savedCopy')
+          : t('codeViewer.savedFile')) + note
       );
     } catch (e) {
-      Alert.alert('Kaydedilemedi', e instanceof Error && e.message ? e.message : 'Tablo kaydedilirken hata oluştu.');
+      Alert.alert(t('settings.notSaved'), e instanceof Error && e.message ? e.message : t('sheet.saveFail'));
     } finally {
       setIsSaving(false);
     }
@@ -1046,7 +1047,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.infoText, { color: colors.textMuted, marginTop: 14 }]}>Tablo hazırlanıyor...</Text>
+        <Text style={[styles.infoText, { color: colors.textMuted, marginTop: 14 }]}>{t('sheet.preparing')}</Text>
       </View>
     );
   }
@@ -1054,7 +1055,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
-        <Text style={[styles.errorTitle, { color: colors.text }]}>Tablo açılamadı</Text>
+        <Text style={[styles.errorTitle, { color: colors.text }]}>{t('sheet.openFailTitle')}</Text>
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>{errorMsg || 'Bilinmeyen hata.'}</Text>
       </View>
     );
@@ -1074,7 +1075,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Tabloda ara..."
+            placeholder={t('sheet.searchPlaceholder')}
             placeholderTextColor={colors.textMuted}
             value={searchInput}
             onChangeText={setSearchInput}
@@ -1082,7 +1083,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
             autoCorrect={false}
             returnKeyType="search"
             onSubmitEditing={() => goMatch(1)}
-            accessibilityLabel="Tabloda ara"
+            accessibilityLabel={t('sheet.searchA11y')}
           />
           {searchInput.length > 0 && (
             <Pressable
@@ -1090,7 +1091,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
               hitSlop={12}
               style={styles.iconBtnSmall}
               accessibilityRole="button"
-              accessibilityLabel="Aramayı temizle"
+              accessibilityLabel={t('search.clear')}
             >
               <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </Pressable>
@@ -1103,7 +1104,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
             onPress={handleSave}
             disabled={isSaving}
             accessibilityRole="button"
-            accessibilityLabel={dirtyCount > 0 ? `Kaydet, ${dirtyCount} değişiklik` : 'Kaydet, değişiklik yok'}
+            accessibilityLabel={dirtyCount > 0 ? t('sheet.saveCountA11y', { count: dirtyCount }) : t('sheet.saveNoneA11y')}
             accessibilityState={{ disabled: isSaving, busy: isSaving }}
           >
             {isSaving ? (
@@ -1111,7 +1112,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
             ) : (
               <MaterialCommunityIcons name="content-save-outline" size={18} color={onPrimary} />
             )}
-            <Text style={[styles.saveBtnText, { color: onPrimary }]}>{dirtyCount > 0 ? `Kaydet (${dirtyCount})` : 'Kaydet'}</Text>
+            <Text style={[styles.saveBtnText, { color: onPrimary }]}>{dirtyCount > 0 ? `Kaydet (${dirtyCount})` : t('common.save')}</Text>
           </Pressable>
         )}
       </View>
@@ -1121,8 +1122,8 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
         <View style={[styles.matchBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <Text style={[styles.matchText, { color: matches.length === 0 ? colors.warning : colors.textSecondary }]} accessibilityLiveRegion="polite">
             {matches.length === 0
-              ? 'Sonuç bulunamadı'
-              : `${Math.min(matchIdx, matches.length - 1) + 1} / ${matches.length}${found.truncated ? '+' : ''} sonuç`}
+              ? t('browser.noResults')
+              : t('sheet.matchPos', { pos: Math.min(matchIdx, matches.length - 1) + 1, total: `${matches.length}${found.truncated ? '+' : ''}` })}
           </Text>
           <View style={styles.matchBtns}>
             <Pressable
@@ -1131,7 +1132,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
               hitSlop={6}
               style={[styles.iconBtn, matches.length === 0 && { opacity: 0.4 }]}
               accessibilityRole="button"
-              accessibilityLabel="Önceki sonuç"
+              accessibilityLabel={t('viewers.prevResult')}
             >
               <Ionicons name="chevron-up" size={22} color={colors.text} />
             </Pressable>
@@ -1141,7 +1142,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
               hitSlop={6}
               style={[styles.iconBtn, matches.length === 0 && { opacity: 0.4 }]}
               accessibilityRole="button"
-              accessibilityLabel="Sonraki sonuç"
+              accessibilityLabel={t('viewers.nextResult')}
             >
               <Ionicons name="chevron-down" size={22} color={colors.text} />
             </Pressable>
@@ -1155,18 +1156,18 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
           {grid.truncated && (
             <Text style={[styles.bannerText, { color: colors.text }]}>
               {grid.totalRows > grid.rowCount
-                ? `Büyük sayfa: ilk ${grid.rowCount.toLocaleString('tr-TR')} satır gösteriliyor (toplam ${grid.totalRows.toLocaleString('tr-TR')}). Gösterilmeyen satırlar kayıtta korunur.`
-                : `Çok sayıda sütun: ilk ${MAX_COLS} sütun gösteriliyor. Gösterilmeyen sütunlar kayıtta korunur.`}
+                ? t('sheet.bigSheet', { shown: formatInt(grid.rowCount), total: formatInt(grid.totalRows) })
+                : t('sheet.manyCols', { max: MAX_COLS })}
             </Text>
           )}
           {readOnly && (
             <Text style={[styles.bannerText, { color: colors.text }]}>
-              Bu dosya yalnızca okunabilir (arşiv içinden açıldı); düzenleme ve kaydetme kapalı.
+              {t('sheet.readOnly')}
             </Text>
           )}
           {csv && (
             <Text style={[styles.bannerText, { color: colors.textSecondary }]}>
-              {`Ayırıcı: ${csv.delim === '\t' ? 'Sekme' : csv.delim === ';' ? 'Noktalı virgül (;)' : csv.delim === '|' ? 'Dikey çizgi (|)' : 'Virgül (,)'} · Kodlama: ${encodingLabel(csv.encoding)}${csv.hadBom ? ' (BOM)' : ''}`}
+              {t('sheet.csvInfo', { delim: csv.delim === '\t' ? t('sheet.delimTab') : csv.delim === ';' ? t('sheet.delimSemicolon') : csv.delim === '|' ? t('sheet.delimPipe') : t('sheet.delimComma'), encoding: `${encodingLabel(csv.encoding)}${csv.hadBom ? ' (BOM)' : ''}` })}
             </Text>
           )}
         </View>
@@ -1207,7 +1208,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
         <View style={styles.center}>
           <Ionicons name="grid-outline" size={44} color={colors.textMuted} />
           <Text style={[styles.infoText, { color: colors.textSecondary, marginTop: 10 }]}>
-            {visibleSheets === 1 ? `"${grid.name}" ` : 'Bu '}sayfa boş.
+            {visibleSheets === 1 ? t('sheet.emptyNamed', { name: grid.name }) : t('sheet.emptyThis')}
           </Text>
         </View>
       ) : (
@@ -1233,7 +1234,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
                     style={[styles.cell, styles.headerCell, { width: w, height: HEADER_H, backgroundColor: colors.surface, borderColor: colors.border }]}
                     onPress={() => handleSort(c)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Sütun ${letterOf(c)}, sırala${isSorted ? (sortAsc ? ', artan' : ', azalan') : ''}`}
+                    accessibilityLabel={t('sheet.colSortA11y', { col: letterOf(c), dir: isSorted ? (sortAsc ? t('browser.ascending') : t('browser.descending')) : '' })}
                   >
                     <Text style={[styles.headerText, { color: isSorted ? colors.primary : colors.text }]}>{letterOf(c)}</Text>
                     {isSorted && <Ionicons name={sortAsc ? 'chevron-up' : 'chevron-down'} size={14} color={colors.primary} style={{ marginLeft: 4 }} />}
@@ -1271,14 +1272,14 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
             style={StyleSheet.absoluteFill}
             onPress={() => setSelected(null)}
             accessibilityRole="button"
-            accessibilityLabel="Kapat"
+            accessibilityLabel={t('common.close')}
           />
           <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.modalColName, { color: colors.primary }]}>{selected?.address}</Text>
                 <Text style={[styles.modalRowName, { color: colors.textMuted }]}>
-                  Sütun {selected ? letterOf(selected.c) : ''} · Satır {selected && grid ? grid.startRow + selected.r + 1 : ''}
+                  {t('sheet.colRow', { col: selected ? letterOf(selected.c) : '', row: selected && grid ? grid.startRow + selected.r + 1 : '' })}
                 </Text>
               </View>
               <Pressable
@@ -1286,7 +1287,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
                 hitSlop={10}
                 style={styles.iconBtn}
                 accessibilityRole="button"
-                accessibilityLabel="Hücre penceresini kapat"
+                accessibilityLabel={t('sheet.closeCellA11y')}
               >
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
@@ -1295,19 +1296,19 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
             {!!selected?.formula && (
               <View style={[styles.formulaBox, { backgroundColor: colors.surface, borderColor: colors.warning }]}>
                 <Text style={[styles.formulaText, { color: colors.textSecondary }]} selectable>
-                  Formül: ={selected.formula}
+                  {t('sheet.formulaLabel', { formula: selected.formula })}
                 </Text>
-                {!readOnly && <Text style={[styles.formulaWarn, { color: colors.warning }]}>Değeri değiştirirseniz formül silinir.</Text>}
+                {!readOnly && <Text style={[styles.formulaWarn, { color: colors.warning }]}>{t('sheet.formulaWarn')}</Text>}
               </View>
             )}
             {!!selected?.arrayFormula && (
               <Text style={[styles.formulaWarn, { color: colors.warning, marginBottom: 10 }]}>
-                Dizi formülü içeren hücreler bu görüntüleyicide düzenlenemez.
+                {t('sheet.arrayFormula')}
               </Text>
             )}
 
             <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-              {readOnly || selected?.arrayFormula ? 'Hücre değeri' : 'Hücre değerini düzenle'}
+              {readOnly || selected?.arrayFormula ? t('sheet.cellValue') : t('sheet.editCellValue')}
             </Text>
             <TextInput
               style={[styles.modalTextInput, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
@@ -1315,7 +1316,7 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
               value={editValue}
               onChangeText={setEditValue}
               editable={!readOnly && !selected?.arrayFormula}
-              accessibilityLabel="Hücre değeri"
+              accessibilityLabel={t('sheet.cellValue')}
             />
 
             <View style={styles.modalActions}>
@@ -1323,10 +1324,10 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
                 style={[styles.modalBtn, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
                 onPress={copyCell}
                 accessibilityRole="button"
-                accessibilityLabel="Hücre içeriğini kopyala"
+                accessibilityLabel={t('sheet.copyCellA11y')}
               >
                 <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={18} color={colors.text} />
-                <Text style={[styles.modalBtnText, { color: colors.text }]}>{copied ? 'Kopyalandı' : 'Kopyala'}</Text>
+                <Text style={[styles.modalBtnText, { color: colors.text }]}>{copied ? t('details.copied') : t('details.copy')}</Text>
               </Pressable>
 
               {!readOnly && !selected?.arrayFormula && (
@@ -1334,10 +1335,10 @@ export const SpreadsheetViewer: React.FC<SpreadsheetViewerProps> = ({ file, appT
                   style={[styles.modalBtn, { backgroundColor: colors.primary }]}
                   onPress={handleUpdateCell}
                   accessibilityRole="button"
-                  accessibilityLabel="Hücreyi güncelle"
+                  accessibilityLabel={t('sheet.updateCellA11y')}
                 >
                   <Ionicons name="checkmark" size={18} color={onPrimary} />
-                  <Text style={[styles.modalBtnText, { color: onPrimary }]}>Güncelle</Text>
+                  <Text style={[styles.modalBtnText, { color: onPrimary }]}>{t('common.update')}</Text>
                 </Pressable>
               )}
             </View>

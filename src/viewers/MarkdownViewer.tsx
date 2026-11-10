@@ -10,6 +10,7 @@ import { marked } from 'marked';
 import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import { sanitizeDocumentHtml, escapeHtmlText } from '../utils/sanitizeHtml';
+import { t } from '../i18n';
 
 interface MarkdownViewerProps {
   file: FileInfo;
@@ -91,7 +92,7 @@ function renderMarkdown(source: string): { html: string; hasMath: boolean; faile
     return { html, hasMath: used > 0, failed: false };
   } catch {
     return {
-      html: `<p class="note">Markdown işlenemedi; ham metin gösteriliyor.</p><pre>${escapeHtmlText(source)}</pre>`,
+      html: `<p class="note">${t('markdown.rawNote')}</p><pre>${escapeHtmlText(source)}</pre>`,
       hasMath: false,
       failed: true,
     };
@@ -276,9 +277,9 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
   const handleCopy = useCallback(async () => {
     try {
       await Clipboard.setStringAsync(content);
-      showToast('Kopyalandı');
+      showToast(t('details.copied'));
     } catch {
-      showToast('Kopyalanamadı');
+      showToast(t('details.copyFailTitle'));
     }
   }, [content, showToast]);
 
@@ -286,7 +287,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
     try {
       await Share.share({ message: content, title: file.name });
     } catch {
-      showToast('Paylaşılamadı');
+      showToast(t('common.shareFailTitle'));
     }
   }, [content, file.name, showToast]);
 
@@ -296,7 +297,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
     if (url === 'about:blank' || url.startsWith('about:blank#') || url.startsWith('data:text/html')) return true;
     if (url.startsWith('#')) return true;
     if (/^(https?:|mailto:|tel:)/i.test(url)) {
-      Linking.openURL(url).catch(() => showToast('Bağlantı açılamadı'));
+      Linking.openURL(url).catch(() => showToast(t('docx.linkFailTitle')));
     }
     return false;
   }, [showToast]);
@@ -320,14 +321,14 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
     <View style={[styles.container, { backgroundColor: c.background }]}>
       <View style={[styles.toolbar, { backgroundColor: c.card, borderBottomColor: c.border }]}>
         <View style={styles.toolGroup}>
-          {barBtn('Yazıyı küçült', null, 'A-', () => changeFont(-2), fontSize <= MIN_FONT)}
-          {barBtn('Yazıyı büyüt', null, 'A+', () => changeFont(2), fontSize >= MAX_FONT)}
+          {barBtn(t('epub.fontSmaller'), null, 'A-', () => changeFont(-2), fontSize <= MIN_FONT)}
+          {barBtn(t('epub.fontLarger'), null, 'A+', () => changeFont(2), fontSize >= MAX_FONT)}
         </View>
         {toast ? <Text style={[styles.toast, { color: c.textSecondary }]} accessibilityLiveRegion="polite">{toast}</Text> : <View style={{ flex: 1 }} />}
         <View style={styles.toolGroup}>
           {barBtn('Belgede ara', 'search', null, () => setSearchOpen((o) => !o))}
           {barBtn('Metni kopyala', 'copy-outline', null, handleCopy)}
-          {barBtn('Metni paylaş', 'share-outline', null, handleShare)}
+          {barBtn(t('markdown.shareText'), 'share-outline', null, handleShare)}
         </View>
       </View>
 
@@ -347,14 +348,14 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
       {failed ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={44} color={c.textMuted} />
-          <Text style={[styles.errText, { color: c.textSecondary }]}>Belge görüntülenemedi.</Text>
+          <Text style={[styles.errText, { color: c.textSecondary }]}>{t('markdown.displayFail')}</Text>
           <TouchableOpacity
             style={[styles.retryBtn, { backgroundColor: c.primary }]}
             onPress={() => { setFailed(false); setLoading(true); setReloadKey((k) => k + 1); }}
             accessibilityRole="button"
-            accessibilityLabel="Yeniden dene"
+            accessibilityLabel={t('common.retry')}
           >
-            <Text style={styles.retryText}>Yeniden dene</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (

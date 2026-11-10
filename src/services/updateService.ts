@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Linking, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import { getAppVersion } from '../utils/appInfo';
+import { t, formatSize } from '../i18n';
 
 /** Güncellemelerin yayımlandığı GitHub deposu (T-Desk Viewer'a ÖZEL; diğer depolarla karışmaz). */
 export const UPDATE_REPO = { owner: 'taha-sa', repo: 'tdesk-viewer-releases' } as const;
@@ -63,11 +64,11 @@ interface GitHubRelease {
 
 /** GitHub release yanıtından karar üretir (ağdan bağımsız, test edilebilir). */
 export function evaluateRelease(release: unknown, currentVersion: string): UpdateResult {
-  if (!release || typeof release !== 'object') return { status: 'error', message: 'Beklenmeyen yanıt alındı.' };
+  if (!release || typeof release !== 'object') return { status: 'error', message: t('updates.err.unexpected') };
   const r = release as GitHubRelease;
   if (r.draft === true || r.prerelease === true) return { status: 'latest', current: currentVersion, latest: currentVersion };
   const tag = typeof r.tag_name === 'string' ? r.tag_name : '';
-  if (!parseVersion(tag)) return { status: 'error', message: 'Yayın etiketi anlaşılamadı.' };
+  if (!parseVersion(tag)) return { status: 'error', message: t('updates.err.tag') };
   const latest = tag.replace(/^[vV]/, '');
   if (compareVersions(latest, currentVersion) <= 0) return { status: 'latest', current: currentVersion, latest };
 
@@ -95,7 +96,7 @@ export function evaluateRelease(release: unknown, currentVersion: string): Updat
 
 export async function checkForUpdate(): Promise<UpdateResult> {
   const current = getAppVersion();
-  if (!parseVersion(current)) return { status: 'error', message: 'Mevcut sürüm okunamadı.' };
+  if (!parseVersion(current)) return { status: 'error', message: t('updates.err.current') };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -107,13 +108,13 @@ export async function checkForUpdate(): Promise<UpdateResult> {
       try { await AsyncStorage.setItem(KEYS.LAST_CHECK, String(Date.now())); } catch { /* önemsiz */ }
       return { status: 'latest', current, latest: current }; // henüz yayın yok
     }
-    if (!res.ok) return { status: 'error', message: `Güncelleme sunucusu yanıt vermedi (${res.status}).` };
+    if (!res.ok) return { status: 'error', message: t('updates.err.server', { status: res.status }) };
     const result = evaluateRelease(await res.json(), current);
     try { await AsyncStorage.setItem(KEYS.LAST_CHECK, String(Date.now())); } catch { /* önemsiz */ }
     return result;
   } catch (e: any) {
     const aborted = e?.name === 'AbortError';
-    return { status: 'error', message: aborted ? 'Bağlantı zaman aşımına uğradı.' : 'İnternet bağlantısı kurulamadı.' };
+    return { status: 'error', message: aborted ? t('updates.err.timeout') : t('updates.err.network') };
   } finally {
     clearTimeout(timer);
   }
@@ -127,21 +128,21 @@ export async function openUpdate(update: Extract<UpdateResult, { status: 'availa
     await Linking.openURL(target);
     return true;
   } catch {
-    Alert.alert('Açılamadı', 'Güncelleme bağlantısı açılamadı. Lütfen daha sonra tekrar deneyin.');
+    Alert.alert(t('about.openFailTitle'), t('updates.linkFail'));
     return false;
   }
 }
 
 export function formatUpdateMessage(u: Extract<UpdateResult, { status: 'available' }>): string {
-  const size = u.apkSize ? ` (${(u.apkSize / 1048576).toFixed(1)} MB)` : '';
-  const notes = u.notes ? `\n\nYenilikler:\n${u.notes}` : '';
+  const size = u.apkSize ? ` (${formatSize(u.apkSize)})` : '';
+  const notes = u.notes ? `\n\n${t('updates.notes')}\n${u.notes}` : '';
   const how = Platform.OS === 'android' && u.apkUrl
-    ? '\n\nGüncelle\'ye basınca APK indirilir; indirme bitince bildirimden açıp kurabilirsiniz (ilk seferde "bu kaynaktan kurulum"a izin vermeniz istenebilir).'
-    : '\n\nGüncelle\'ye basınca yayın sayfası açılır.';
-  return `Yeni sürüm: ${u.latest}${size}\nMevcut sürüm: ${u.current}${notes}${how}`;
+    ? `\n\n${t('updates.howApk')}`
+    : `\n\n${t('updates.howPage')}`;
+  return `${t('updates.newVersion', { version: u.latest })}${size}\n${t('updates.currentVersion', { version: u.current })}${notes}${how}`;
 }
 
-/** Açılışta sessiz denetim: günde en fazla bir kez; "Bu sürümü atla" seçilen sürüm bir daha sorulmaz. */
+/** Açılışta sessiz denetim: günde en fazla bir kez; t('updates.skipVersion') seçilen sürüm bir daha sorulmaz. */
 export async function autoCheckAndPrompt(): Promise<void> {
   try {
     const last = Number((await AsyncStorage.getItem(KEYS.LAST_CHECK)) || 0);
@@ -150,10 +151,10 @@ export async function autoCheckAndPrompt(): Promise<void> {
     if (result.status !== 'available') return;
     const skipped = await AsyncStorage.getItem(KEYS.SKIPPED);
     if (skipped && skipped === result.latest) return;
-    Alert.alert('Güncelleme mevcut', formatUpdateMessage(result), [
-      { text: 'Sonra', style: 'cancel' },
-      { text: 'Bu sürümü atla', onPress: () => { void AsyncStorage.setItem(KEYS.SKIPPED, result.latest); } },
-      { text: 'Güncelle', onPress: () => { void openUpdate(result); } },
+    Alert.alert(t('settings.updateAvailableTitle'), formatUpdateMessage(result), [
+      { text: t('common.later'), style: 'cancel' },
+      { text: t('updates.skipVersion'), onPress: () => { void AsyncStorage.setItem(KEYS.SKIPPED, result.latest); } },
+      { text: t('common.update'), onPress: () => { void openUpdate(result); } },
     ]);
   } catch { /* açılışı asla bozma */ }
 }
@@ -162,14 +163,14 @@ export async function autoCheckAndPrompt(): Promise<void> {
 export async function promptUpdateNow(): Promise<void> {
   const result = await checkForUpdate();
   if (result.status === 'available') {
-    Alert.alert('Güncelleme mevcut', formatUpdateMessage(result), [
-      { text: 'Sonra', style: 'cancel' },
-      { text: 'Güncelle', onPress: () => { void openUpdate(result); } },
+    Alert.alert(t('settings.updateAvailableTitle'), formatUpdateMessage(result), [
+      { text: t('common.later'), style: 'cancel' },
+      { text: t('common.update'), onPress: () => { void openUpdate(result); } },
     ]);
   } else if (result.status === 'latest') {
-    Alert.alert('Güncel', `T-Desk Viewer son sürümde (${result.current}).`);
+    Alert.alert(t('settings.upToDateTitle'), t('settings.upToDateBody', { version: result.current }));
   } else {
-    Alert.alert('Denetlenemedi', result.message);
+    Alert.alert(t('settings.checkFailTitle'), result.message);
   }
 }
 

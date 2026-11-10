@@ -10,6 +10,7 @@ import { AboutModal } from '../components/AboutModal';
 import { FileService } from '../services/fileService';
 import { useRecentFiles } from '../hooks/useRecentFiles';
 import { sortFiles, splitMissing, CATEGORY_LABELS } from '../utils/fileList';
+import { t } from '../i18n';
 
 interface HomeScreenProps {
   appTheme: AppThemeMode;
@@ -21,9 +22,9 @@ interface HomeScreenProps {
 type TabType = FileType | 'all' | 'favorites';
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const CATEGORY_TABS: { id: TabType; label: string; icon: IconName }[] = [
-  { id: 'all', label: 'Tümü', icon: 'apps-outline' },
-  { id: 'favorites', label: 'Favoriler', icon: 'star-outline' },
+const getCategoryTabs = (): { id: TabType; label: string; icon: IconName }[] => [
+  { id: 'all', label: t('common.all'), icon: 'apps-outline' },
+  { id: 'favorites', label: t('common.favorites'), icon: 'star-outline' },
   { id: 'pdf', label: CATEGORY_LABELS.pdf, icon: 'document-text-outline' },
   { id: 'pptx', label: CATEGORY_LABELS.pptx, icon: 'easel-outline' },
   { id: 'epub', label: CATEGORY_LABELS.epub, icon: 'book-outline' },
@@ -91,8 +92,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
 
   const shown = useMemo(() => filtered.slice(0, RECENT_LIMIT), [filtered]);
   const hasAny = files.length > 0;
-  const selectedLabel = CATEGORY_TABS.find((t) => t.id === selectedTab)?.label ?? '';
-  const sectionTitle = selectedTab === 'all' ? 'Son Dosyalar' : selectedTab === 'favorites' ? 'Favoriler' : selectedLabel;
+  const selectedLabel = getCategoryTabs().find((t) => t.id === selectedTab)?.label ?? '';
+  const sectionTitle = selectedTab === 'all' ? 'Son Dosyalar' : selectedTab === 'favorites' ? t('common.favorites') : selectedLabel;
 
   const goToBrowser = useCallback(() => {
     onNavigateToBrowser(selectedTab !== 'all' && selectedTab !== 'favorites' ? selectedTab : undefined);
@@ -114,7 +115,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
           disabled={picking}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Dosya aç. Cihazdan bir belge seçin"
+          accessibilityLabel={t('home.pickA11y')}
           accessibilityState={{ disabled: picking, busy: picking }}
         >
           <View style={[styles.heroIconCircle, { backgroundColor: currentColors.primaryGlow }]}>
@@ -125,13 +126,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
             )}
           </View>
           <View style={styles.heroTextContent}>
-            <Text style={[styles.heroTitle, { color: currentColors.text }]}>Dosya Aç</Text>
+            <Text style={[styles.heroTitle, { color: currentColors.text }]}>{t('common.openFile')}</Text>
             <Text style={[styles.heroSub, { color: currentColors.textSecondary }]}>
-              PDF, Word, Excel, PowerPoint, EPUB, Markdown, kod, görsel veya ZIP
+              {t('home.heroFormats')}
             </Text>
           </View>
           <View style={[styles.pickBadge, { backgroundColor: currentColors.primary }]}>
-            <Text style={[styles.pickBadgeText, { color: currentColors.onPrimary }]}>{picking ? 'Açılıyor' : 'Göz At'}</Text>
+            <Text style={[styles.pickBadgeText, { color: currentColors.onPrimary }]}>{picking ? t('common.opening') : t('common.browse')}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -139,7 +140,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
       {hasAny ? (
         <View style={styles.tabSection}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-            {CATEGORY_TABS.map((tab) => {
+            {getCategoryTabs().map((tab) => {
               const isSelected = selectedTab === tab.id;
               const count = tabCounts[tab.id] ?? 0;
               const label = count > 0 ? `${tab.label} (${count})` : tab.label;
@@ -193,10 +194,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
         style={[styles.moreBtn, { borderColor: currentColors.border, backgroundColor: currentColors.card }]}
         onPress={goToBrowser}
         accessibilityRole="button"
-        accessibilityLabel={`Tüm dosyalara git, ${filtered.length} dosya`}
+        accessibilityLabel={t('home.goAllA11y', { count: filtered.length })}
       >
         <Text style={[styles.moreBtnText, { color: currentColors.primary }]}>
-          {filtered.length > RECENT_LIMIT ? `Tümünü Gör (${filtered.length})` : 'Arama ve Sıralama'}
+          {filtered.length > RECENT_LIMIT ? t('home.seeAll', { count: filtered.length }) : t('home.searchAndSort')}
         </Text>
         <Ionicons name="chevron-forward" size={16} color={currentColors.primary} />
       </TouchableOpacity>
@@ -209,24 +210,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
   ) : !hasAny ? (
     <View style={styles.emptyState}>
       <Ionicons name="documents-outline" size={52} color={currentColors.textMuted} />
-      <Text style={[styles.emptyTitle, { color: currentColors.text }]}>Henüz dosya açmadınız</Text>
+      <Text style={[styles.emptyTitle, { color: currentColors.text }]}>{t('home.emptyTitle')}</Text>
       <Text style={[styles.emptyDesc, { color: currentColors.textSecondary }]}>
-        Yukarıdaki "Dosya Aç" düğmesiyle bir belge seçin. Dosyalar uygulamanın "Birlikte aç" menüsünden (ör. indirilenler, e-posta eki) de açılabilir.
-        Açtığınız dosyalar burada listelenir; yıldızla favori yapabilirsiniz.
+        {t('home.emptyBody')}
       </Text>
     </View>
   ) : (
     <View style={styles.emptyState}>
       <Ionicons name="file-tray-outline" size={44} color={currentColors.textMuted} />
       <Text style={[styles.emptyTitle, { color: currentColors.text }]}>
-        {selectedTab === 'favorites' ? 'Favori dosya yok' : selectedTab === 'all' ? 'Gösterilecek dosya yok' : 'Bu türde dosya yok'}
+        {selectedTab === 'favorites' ? t('home.noFavs') : selectedTab === 'all' ? t('home.noFiles') : t('home.noFilesOfType')}
       </Text>
       <Text style={[styles.emptyDesc, { color: currentColors.textSecondary }]}>
         {selectedTab === 'favorites'
-          ? 'Bir dosyanın yanındaki yıldıza dokunarak favorilere ekleyebilirsiniz.'
+          ? t('home.noFavsHint')
           : selectedTab === 'all'
-          ? 'Kayıtlı dosyalar cihazda bulunamadı. "Dosyalar" sekmesinden yönetebilir veya yeni bir dosya açabilirsiniz.'
-          : 'Başka bir filtre seçin ya da yeni bir dosya açın.'}
+          ? t('home.allMissingHint')
+          : t('home.otherFilterHint')}
       </Text>
     </View>
   );

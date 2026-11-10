@@ -4,6 +4,7 @@
 // - encodeTextBytes: kaydederken orijinal kodlamayı koru (bozulma/kalıcı veri kaybı yok).
 // Ayrıca CodeViewer/TextViewer/SpreadsheetViewer'ın paylaştığı küçük saf metin yardımcıları.
 import * as FileSystem from 'expo-file-system';
+import { formatSize } from '../i18n';
 
 export type TextEncodingName = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1254';
 export type EolStyle = 'lf' | 'crlf' | 'cr';
@@ -510,12 +511,7 @@ export function findMatches(
 }
 
 export function formatBytes(n: number): string {
-  if (!isFinite(n) || n < 0) return '—';
-  if (n < 1024) return `${Math.round(n)} B`;
-  const kb = n / 1024;
-  if (kb < 1024) return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`;
-  const mb = kb / 1024;
-  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+  return formatSize(n);
 }
 
 export function encodingLabel(e: TextEncodingName): string {

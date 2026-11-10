@@ -34,6 +34,7 @@ import {
   TextReadError,
 } from '../utils/textEncoding';
 import { LinesView, LinesViewHandle, MONO_FONT, onColor, SearchRow, ToolButton, useLineSearch } from './LinesView';
+import { t } from '../i18n';
 
 interface CodeViewerProps {
   /** Kaydedilmemiş düzenleme var/yok bildirimi (üst ekran çıkışta onay isteyebilsin). */
@@ -73,7 +74,7 @@ function confirmAsync(title: string, message: string, confirmText: string, destr
       title,
       message,
       [
-        { text: 'Vazgeç', style: 'cancel', onPress: () => resolve(false) },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
         { text: confirmText, style: destructive ? 'destructive' : 'default', onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) }
@@ -85,16 +86,16 @@ function describeReadError(e: unknown): string {
   if (e instanceof TextReadError) {
     switch (e.code) {
       case 'too_large':
-        return `Dosya çok büyük${e.size ? ` (${formatBytes(e.size)})` : ''}. Kod görüntüleyici en fazla 5 MB'a kadar açar.`;
+        return t('codeViewer.tooLarge', { sizeInfo: e.size ? ` (${formatBytes(e.size)})` : '' });
       case 'binary':
-        return 'Bu dosya metin değil, ikili (binary) veri içeriyor; kod olarak gösterilemez.';
+        return t('codeViewer.binary');
       case 'not_found':
-        return 'Dosya bulunamadı. Taşınmış veya silinmiş olabilir.';
+        return t('codeViewer.notFound');
       default:
-        return 'Dosya okunamadı. Erişim izni olmayabilir veya dosya bozuk olabilir.';
+        return t('codeViewer.readFail');
     }
   }
-  return 'Dosya okunamadı.';
+  return t('codeViewer.readFailShort');
 }
 
 export const CodeViewer: React.FC<CodeViewerProps> = ({
@@ -196,16 +197,16 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
   const canEdit = status === 'ready' && !virtual && text.length <= MAX_EDIT_CHARS;
   const editDisabledReason = virtual
-    ? 'Arşiv içindeki veya geçici dosyalar düzenlenemez.'
+    ? t('codeViewer.noEditVirtual')
     : text.length > MAX_EDIT_CHARS
-    ? 'Dosya düzenleme için çok büyük (1 MB üstü).'
+    ? t('codeViewer.noEditLarge')
     : '';
 
   // Android geri tuşu: kaydedilmemiş değişiklikte uyar
   useEffect(() => {
     if (!dirty) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      confirmAsync('Kaydedilmemiş değişiklikler', 'Değişiklikler silinsin mi?', 'Sil', true).then((ok) => {
+      confirmAsync(t('viewer.unsavedTitle'), t('codeViewer.discardQ'), t('common.delete'), true).then((ok) => {
         if (ok && mountedRef.current) {
           setIsEditing(false);
         }
@@ -217,7 +218,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
 
   const startEdit = () => {
     if (!canEdit) {
-      if (editDisabledReason) Alert.alert('Düzenlenemez', editDisabledReason);
+      if (editDisabledReason) Alert.alert(t('codeViewer.cannotEdit'), editDisabledReason);
       return;
     }
     search.close();
@@ -226,22 +227,22 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
   };
 
   const cancelEdit = async () => {
-    if (dirty && !(await confirmAsync('Kaydedilmemiş değişiklikler', 'Değişiklikler silinsin mi?', 'Sil', true))) return;
+    if (dirty && !(await confirmAsync(t('viewer.unsavedTitle'), t('codeViewer.discardQ'), t('common.delete'), true))) return;
     if (mountedRef.current) setIsEditing(false);
   };
 
   const handleCopy = async () => {
     try {
       await Clipboard.setStringAsync(isEditing ? draft : text);
-      showToast('Kopyalandı');
+      showToast(t('details.copied'));
     } catch {
-      Alert.alert('Hata', 'Panoya kopyalanamadı.');
+      Alert.alert(t('common.error'), t('viewers.clipboardFail'));
     }
   };
 
   const handleExportPDF = async () => {
     if (lines.length > MAX_PDF_LINES) {
-      Alert.alert('Dosya çok büyük', `PDF dışa aktarımı en fazla ${MAX_PDF_LINES} satıra kadar desteklenir.`);
+      Alert.alert(t('viewer.tooBigTitle'), t('codeViewer.pdfTooLong', { max: MAX_PDF_LINES }));
       return;
     }
     try {
@@ -250,22 +251,22 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
       </style></head><body>${escapeHtml(text)}</body></html>`;
       const { uri } = await Print.printToFileAsync({ html });
       if (!mountedRef.current) return;
-      Alert.alert('PDF Üretildi', 'Dosya PDF olarak dışa aktarıldı.', [
+      Alert.alert(t('codeViewer.pdfDoneTitle'), t('codeViewer.pdfDoneBody'), [
         {
-          text: 'Paylaş',
+          text: t('common.share'),
           onPress: async () => {
             try {
               if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/pdf' });
-              else Alert.alert('Paylaşılamadı', 'Bu cihazda paylaşım desteklenmiyor.');
+              else Alert.alert(t('common.shareFailTitle'), t('viewers.shareUnavailable'));
             } catch {
-              Alert.alert('Hata', 'PDF paylaşılamadı.');
+              Alert.alert(t('common.error'), t('codeViewer.pdfShareFail'));
             }
           },
         },
         { text: 'Kapat', style: 'cancel' },
       ]);
     } catch {
-      Alert.alert('Hata', 'PDF üretilirken sorun yaşandı.');
+      Alert.alert(t('common.error'), t('codeViewer.pdfFail'));
     }
   };
 
@@ -275,18 +276,18 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     let withBom = meta.hadBom;
     if (meta.hadReplacementChars) {
       const ok = await confirmAsync(
-        'Okunamayan karakterler',
-        'Dosyada okunamayan (�) karakterler var. Kaydederseniz bu karakterler kalıcı olarak dosyaya yazılır. Devam edilsin mi?',
-        'Yine de kaydet'
+        t('codeViewer.badCharsTitle'),
+        t('codeViewer.badCharsBody'),
+        t('codeViewer.saveAnyway')
       );
       if (!ok) return;
     }
     let enc = encodeTextBytes(applyEol(draft, meta.eol), encoding, withBom);
     if (!enc.lossless) {
       const ok = await confirmAsync(
-        'Kodlama uyarısı',
-        `Bazı karakterler ${encodingLabel(encoding)} kodlamasında yazılamıyor. Dosya UTF-8 olarak kaydedilsin mi?`,
-        'UTF-8 kaydet'
+        t('codeViewer.encodingWarnTitle'),
+        t('codeViewer.encodingWarnBody', { encoding: encodingLabel(encoding) }),
+        t('codeViewer.saveUtf8')
       );
       if (!ok) return;
       encoding = 'utf-8';
@@ -302,13 +303,13 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
       setIsEditing(false);
       const isAppCopy = !!FileSystem.cacheDirectory && file.uri.startsWith(FileSystem.cacheDirectory);
       Alert.alert(
-        'Kaydedildi',
+        t('codeViewer.savedTitle'),
         isAppCopy
-          ? 'Değişiklikler uygulama kopyasına kaydedildi. Orijinal dosyayı güncellemek için Paylaş düğmesinden dışa aktarın.'
-          : 'Değişiklikler dosyaya kaydedildi.'
+          ? t('codeViewer.savedCopy')
+          : t('codeViewer.savedFile')
       );
     } catch {
-      if (mountedRef.current) Alert.alert('Hata', 'Dosya kaydedilemedi. Düzenlemeleriniz ekranda korunuyor.');
+      if (mountedRef.current) Alert.alert(t('common.error'), t('codeViewer.saveFail'));
     } finally {
       if (mountedRef.current) setSaving(false);
     }
@@ -319,8 +320,8 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
 
   const infoLine = useMemo(() => {
     if (!meta) return '';
-    const parts = [`${lines.length} satır`, encodingLabel(meta.encoding)];
-    if (highlightState === 'too-large') parts.push('büyük dosya: vurgulama kapalı');
+    const parts = [t('viewers.lineCount', { count: lines.length }), encodingLabel(meta.encoding)];
+    if (highlightState === 'too-large') parts.push(t('codeViewer.noHighlight'));
     return parts.join(' · ');
   }, [meta, lines.length, highlightState]);
 
@@ -328,7 +329,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     return (
       <View style={[styles.center, { backgroundColor: theme.bg }]} accessibilityLiveRegion="polite">
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.centerText, { color: theme.textColor }]}>Dosya okunuyor...</Text>
+        <Text style={[styles.centerText, { color: theme.textColor }]}>{t('viewer.reading')}</Text>
       </View>
     );
   }
@@ -337,7 +338,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
-        <Text style={[styles.errorTitle, { color: colors.text }]}>Dosya açılamadı</Text>
+        <Text style={[styles.errorTitle, { color: colors.text }]}>{t('app.incomingFailTitle')}</Text>
         <Text style={[styles.centerText, { color: colors.textSecondary }]}>{errorMsg}</Text>
       </View>
     );
@@ -348,7 +349,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
       <View style={[styles.toolbar, { backgroundColor: toolBg, borderBottomColor: colors.border }]}>
         <View style={styles.titleCol}>
           <Text style={[styles.toolTitle, { color: colors.text }]} numberOfLines={1}>
-            {isEditing ? (dirty ? 'Düzenleme (kaydedilmedi)' : 'Düzenleme Modu') : 'Görüntüleme Modu'}
+            {isEditing ? (dirty ? t('codeViewer.editingDirty') : t('codeViewer.editMode')) : t('codeViewer.viewMode')}
           </Text>
           {!!(toast || infoLine) && (
             <Text
@@ -363,7 +364,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
         <View style={styles.toolActions}>
           {isEditing ? (
             <>
-              <ToolButton label="Düzenlemeyi iptal et" onPress={cancelEdit} disabled={saving}>
+              <ToolButton label={t('codeViewer.cancelEdit')} onPress={cancelEdit} disabled={saving}>
                 <Ionicons name="close" size={22} color={colors.textMuted} />
               </ToolButton>
               <TouchableOpacity
@@ -371,7 +372,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
                 onPress={handleSave}
                 disabled={saving || !dirty}
                 accessibilityRole="button"
-                accessibilityLabel="Değişiklikleri kaydet"
+                accessibilityLabel={t('codeViewer.saveChangesA11y')}
                 accessibilityState={{ disabled: saving || !dirty, busy: saving }}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
@@ -380,7 +381,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
                 ) : (
                   <Ionicons name="save-outline" size={16} color={onColor(colors.primary)} />
                 )}
-                <Text style={[styles.btnText, { color: onColor(colors.primary) }]}>Kaydet</Text>
+                <Text style={[styles.btnText, { color: onColor(colors.primary) }]}>{t('common.save')}</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -388,13 +389,13 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
               style={[styles.editBtn, { borderColor: colors.primary }, !canEdit && { opacity: 0.45 }]}
               onPress={startEdit}
               accessibilityRole="button"
-              accessibilityLabel="Düzenle"
+              accessibilityLabel={t('codeViewer.edit')}
               accessibilityHint={canEdit ? undefined : editDisabledReason}
               accessibilityState={{ disabled: !canEdit }}
               hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             >
               <Ionicons name="pencil-outline" size={16} color={colors.primary} />
-              <Text style={[styles.btnText, { color: colors.primary }]}>Düzenle</Text>
+              <Text style={[styles.btnText, { color: colors.primary }]}>{t('codeViewer.edit')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -403,33 +404,33 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
       <View style={[styles.toolRow, { backgroundColor: toolBg, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolRowInner}>
           {!isEditing && (
-            <ToolButton label="Ara" onPress={() => (search.open ? search.close() : search.setOpen(true))} selected={search.open}>
+            <ToolButton label={t('common.search')} onPress={() => (search.open ? search.close() : search.setOpen(true))} selected={search.open}>
               <Ionicons name="search" size={20} color={search.open ? colors.primary : iconColor} />
             </ToolButton>
           )}
-          <ToolButton label={isEditing ? 'Tümünü kopyala (düzenlenen metin)' : 'Tümünü kopyala'} onPress={handleCopy}>
+          <ToolButton label={isEditing ? t('codeViewer.copyAllEdited') : t('viewers.copyAll')} onPress={handleCopy}>
             <Ionicons name="copy-outline" size={20} color={iconColor} />
           </ToolButton>
           {!isEditing && (
             <ToolButton
-              label={wrap ? 'Kelime kaydırmayı kapat' : 'Kelime kaydırmayı aç'}
+              label={wrap ? t('viewers.wrapOff') : t('viewers.wrapOn')}
               onPress={() => setWrap((w) => !w)}
               selected={wrap}
             >
               <MaterialCommunityIcons name="wrap" size={20} color={wrap ? colors.primary : iconColor} />
             </ToolButton>
           )}
-          <ToolButton label="Yazı boyutunu küçült" onPress={() => setFontSize((s) => Math.max(FONT_MIN, s - 1))} disabled={fontSize <= FONT_MIN}>
+          <ToolButton label={t('viewers.fontSmaller')} onPress={() => setFontSize((s) => Math.max(FONT_MIN, s - 1))} disabled={fontSize <= FONT_MIN}>
             <Text style={[styles.fontBtn, { color: iconColor }]}>A-</Text>
           </ToolButton>
-          <Text style={[styles.fontLabel, { color: colors.primary }]} accessibilityLabel={`Yazı boyutu ${fontSize}`}>
+          <Text style={[styles.fontLabel, { color: colors.primary }]} accessibilityLabel={t('viewers.fontSizeA11y', { size: fontSize })}>
             {fontSize}
           </Text>
-          <ToolButton label="Yazı boyutunu büyüt" onPress={() => setFontSize((s) => Math.min(FONT_MAX, s + 1))} disabled={fontSize >= FONT_MAX}>
+          <ToolButton label={t('viewers.fontLarger')} onPress={() => setFontSize((s) => Math.min(FONT_MAX, s + 1))} disabled={fontSize >= FONT_MAX}>
             <Text style={[styles.fontBtn, { color: iconColor }]}>A+</Text>
           </ToolButton>
           {!isEditing && (
-            <ToolButton label="PDF olarak dışa aktar" onPress={handleExportPDF}>
+            <ToolButton label={t('codeViewer.exportPdf')} onPress={handleExportPDF}>
               <Ionicons name="document-text-outline" size={20} color={colors.primary} />
             </ToolButton>
           )}
@@ -459,7 +460,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
           spellCheck={false}
           textAlignVertical="top"
           scrollEnabled
-          accessibilityLabel="Dosya içeriği düzenleyici"
+          accessibilityLabel={t('codeViewer.editorA11y')}
         />
       ) : (
         <LinesView
@@ -477,7 +478,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
           tokenColor={tokenColor}
           matchLines={search.matchLines}
           currentLine={search.currentLine}
-          emptyText="Dosya boş."
+          emptyText={t('codeViewer.empty')}
         />
       )}
     </View>

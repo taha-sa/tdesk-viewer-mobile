@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { t } from '../i18n';
 
 interface Palette {
   background: string;
@@ -31,7 +32,7 @@ const HIT = { top: 4, bottom: 4, left: 4, right: 4 };
 
 export const WebSearchBar: React.FC<WebSearchBarProps> = ({ colors, value, onChange, count, index, onNext, onPrev, onClose, scopeLabel, busyText }) => {
   const hasQuery = value.trim().length > 0;
-  const base = count === 0 ? (busyText ? '' : 'Sonuç yok') : `${index + 1} / ${count}`;
+  const base = count === 0 ? (busyText ? '' : t('viewers.noResults')) : `${index + 1} / ${count}`;
   const status = !hasQuery ? '' : [base, busyText].filter(Boolean).join(' · ');
   return (
     <View style={[styles.wrap, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
@@ -41,24 +42,24 @@ export const WebSearchBar: React.FC<WebSearchBarProps> = ({ colors, value, onCha
           style={[styles.input, { color: colors.text }]}
           value={value}
           onChangeText={onChange}
-          placeholder={scopeLabel ? `Ara (${scopeLabel})` : 'Ara'}
+          placeholder={scopeLabel ? t('viewers.searchScoped', { scope: scopeLabel }) : t('common.search')}
           placeholderTextColor={colors.textMuted}
           autoFocus
           returnKeyType="search"
           onSubmitEditing={onNext}
           autoCorrect={false}
           autoCapitalize="none"
-          accessibilityLabel="Belgede ara"
+          accessibilityLabel={t('viewers.searchInDoc')}
         />
         {hasQuery ? <Text style={[styles.status, { color: colors.textMuted }]} accessibilityLiveRegion="polite">{status}</Text> : null}
       </View>
-      <TouchableOpacity style={styles.btn} onPress={onPrev} disabled={count === 0} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Önceki sonuç" accessibilityState={{ disabled: count === 0 }}>
+      <TouchableOpacity style={styles.btn} onPress={onPrev} disabled={count === 0} hitSlop={HIT} accessibilityRole="button" accessibilityLabel={t('viewers.prevResult')} accessibilityState={{ disabled: count === 0 }}>
         <Ionicons name="chevron-up" size={22} color={count === 0 ? colors.textMuted : colors.text} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.btn} onPress={onNext} disabled={count === 0} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Sonraki sonuç" accessibilityState={{ disabled: count === 0 }}>
+      <TouchableOpacity style={styles.btn} onPress={onNext} disabled={count === 0} hitSlop={HIT} accessibilityRole="button" accessibilityLabel={t('viewers.nextResult')} accessibilityState={{ disabled: count === 0 }}>
         <Ionicons name="chevron-down" size={22} color={count === 0 ? colors.textMuted : colors.text} />
       </TouchableOpacity>
-      <TouchableOpacity style={styles.btn} onPress={onClose} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Aramayı kapat">
+      <TouchableOpacity style={styles.btn} onPress={onClose} hitSlop={HIT} accessibilityRole="button" accessibilityLabel={t('viewers.closeSearch')}>
         <Ionicons name="close" size={22} color={colors.text} />
       </TouchableOpacity>
     </View>

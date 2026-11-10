@@ -1,4 +1,5 @@
 import { PDFJS_LIB, PDFJS_WORKER, PDFJS_VIEWER_JS, PDFJS_VIEWER_CSS } from './pdfjsBundle';
+import { t } from '../../i18n';
 
 /** WebView'a verilen sahte (hiç ağ isteği yapılmayan) kök adres: blob worker'ın aynı kökenden çalışabilmesi için. */
 export const PDFJS_BASE_URL = 'https://tdesk-pdf.invalid/';
@@ -14,7 +15,7 @@ export function buildPdfHtml(bg: string, fg: string): string {
     '<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=6, user-scalable=yes">',
     `<meta http-equiv="Content-Security-Policy" content="${csp}">`,
     `<style>${PDFJS_VIEWER_CSS}</style></head>`,
-    `<body style="background:${bg};color:${fg}"><div id="msg">PDF hazırlanıyor…</div><div id="pages"></div>`,
+    `<body style="background:${bg};color:${fg}"><div id="msg">${t('pdf.preparing')}</div><div id="pages"></div>`,
     `<script>${PDFJS_LIB}</script>`,
     `<script id="pdfworker" type="text/plain">${PDFJS_WORKER}</script>`,
     `<script>${PDFJS_VIEWER_JS}</script>`,

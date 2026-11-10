@@ -21,6 +21,7 @@ import { Colors } from '../theme/colors';
 import { FileService } from '../services/fileService';
 import { FormatBadge } from './FormatBadge';
 import { CATEGORY_LABELS, formatDateTime } from '../utils/fileList';
+import { t } from '../i18n';
 
 interface FileDetailsModalProps {
   visible: boolean;
@@ -103,7 +104,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
       const next = await FileService.toggleFavorite(shown.id);
       if (!mounted.current) return;
       if (!next && !isFav) {
-        Alert.alert('Favorilere eklenemedi', 'Bu dosya son dosyalar listesinde bulunmuyor.');
+        Alert.alert(t('details.favFailTitle'), t('details.favFailBody'));
       } else {
         setIsFav(next);
         onChanged?.();
@@ -117,7 +118,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
     if (!shown || busy) return;
     const trimmed = nameDraft.trim();
     if (!trimmed) {
-      Alert.alert('Ad boş olamaz', 'Lütfen bir dosya adı girin.');
+      Alert.alert(t('details.nameEmptyTitle'), t('details.nameEmptyBody'));
       return;
     }
     setBusy(true);
@@ -128,7 +129,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
         setRenaming(false);
         onChanged?.();
       } else {
-        Alert.alert('Ad değiştirilemedi', 'Bu ad kaydedilemedi veya dosya listede yok.');
+        Alert.alert(t('details.renameFailTitle'), t('details.renameFailBody'));
       }
     } finally {
       if (mounted.current) setBusy(false);
@@ -138,14 +139,12 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
   const handleRemove = useCallback(() => {
     if (!shown) return;
     Alert.alert(
-      'Listeden kaldır',
-      `"${shown.name}" son dosyalar listesinden ve uygulamanın içindeki kopyasından silinecek${
-        isFav ? ' (favorilerinizden de çıkar)' : ''
-      }. Dosyanın özgün kaynağına (indirilenler vb.) dokunulmaz.`,
+      t('common.removeFromList'),
+      t(isFav ? 'details.removeConfirmFav' : 'details.removeConfirm', { name: shown.name }),
       [
-        { text: 'Vazgeç', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Kaldır',
+          text: t('common.remove'),
           style: 'destructive',
           onPress: () => {
             void FileService.removeRecentFile(shown.id).then((ok) => {
@@ -154,7 +153,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                 onChanged?.();
                 onClose();
               } else {
-                Alert.alert('Kaldırılamadı', 'Kayıt silinemedi.');
+                Alert.alert(t('details.removeFailTitle'), t('details.removeFailBody'));
               }
             });
           },
@@ -174,7 +173,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
         if (mounted.current) setCopied(false);
       }, 1800);
     } catch {
-      Alert.alert('Kopyalanamadı', 'Yol panoya kopyalanamadı.');
+      Alert.alert(t('details.copyFailTitle'), t('details.copyFailBody'));
     }
   }, [shown]);
 
@@ -214,7 +213,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                       hitSlop={HIT_SLOP}
                       disabled={busy}
                       accessibilityRole="button"
-                      accessibilityLabel={isFav ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                      accessibilityLabel={isFav ? t('common.removeFav') : t('common.addFav')}
                       accessibilityState={{ selected: isFav, disabled: busy }}
                     >
                       <Ionicons name={isFav ? 'star' : 'star-outline'} size={24} color={isFav ? currentColors.warning : currentColors.textMuted} />
@@ -225,7 +224,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                     style={styles.iconBtn}
                     hitSlop={HIT_SLOP}
                     accessibilityRole="button"
-                    accessibilityLabel="Kapat"
+                    accessibilityLabel={t('common.close')}
                   >
                     <Ionicons name="close" size={24} color={currentColors.textMuted} />
                   </TouchableOpacity>
@@ -236,7 +235,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                     <View style={[styles.warnBox, { backgroundColor: currentColors.surface, borderColor: currentColors.warning }]}>
                       <Ionicons name="alert-circle-outline" size={18} color={currentColors.warning} />
                       <Text style={[styles.warnText, { color: currentColors.text }]}>
-                        Bu dosya cihazda bulunamadı (silinmiş veya taşınmış olabilir). Kayıt yalnızca favoriniz olduğu için listede duruyor.
+                        {t('details.missingWarn')}
                       </Text>
                     </View>
                   )}
@@ -244,7 +243,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                   {canManage && (
                     <>
                       <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>Ad</Text>
+                        <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>{t('common.name')}</Text>
                       </View>
                       {renaming ? (
                         <View style={styles.renameBox}>
@@ -257,7 +256,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                             maxLength={120}
                             returnKeyType="done"
                             onSubmitEditing={handleSaveRename}
-                            accessibilityLabel="Yeni dosya adı"
+                            accessibilityLabel={t('details.newNameA11y')}
                             placeholderTextColor={currentColors.textMuted}
                           />
                           <View style={styles.renameActions}>
@@ -269,9 +268,9 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                               }}
                               hitSlop={HIT_SLOP}
                               accessibilityRole="button"
-                              accessibilityLabel="Yeniden adlandırmayı iptal et"
+                              accessibilityLabel={t('details.cancelRenameA11y')}
                             >
-                              <Text style={[styles.smallBtnText, { color: currentColors.text }]}>Vazgeç</Text>
+                              <Text style={[styles.smallBtnText, { color: currentColors.text }]}>{t('common.cancel')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={[styles.smallBtn, { backgroundColor: currentColors.primary, borderColor: currentColors.primary }]}
@@ -279,14 +278,14 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                               disabled={busy}
                               hitSlop={HIT_SLOP}
                               accessibilityRole="button"
-                              accessibilityLabel="Yeni adı kaydet"
+                              accessibilityLabel={t('details.saveNameA11y')}
                               accessibilityState={{ disabled: busy }}
                             >
-                              <Text style={[styles.smallBtnText, { color: currentColors.onPrimary }]}>Kaydet</Text>
+                              <Text style={[styles.smallBtnText, { color: currentColors.onPrimary }]}>{t('common.save')}</Text>
                             </TouchableOpacity>
                           </View>
                           <Text style={[styles.hintText, { color: currentColors.textMuted }]}>
-                            Yalnızca uygulamadaki görünen ad değişir; dosyanın kendisi yeniden adlandırılmaz.
+                            {t('details.renameHint')}
                           </Text>
                         </View>
                       ) : (
@@ -294,15 +293,15 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                           style={[styles.rowBtn, { backgroundColor: currentColors.surface }]}
                           onPress={() => setRenaming(true)}
                           accessibilityRole="button"
-                          accessibilityLabel="Yeniden adlandır"
+                          accessibilityLabel={t('details.renameA11y')}
                         >
                           <Ionicons name="create-outline" size={18} color={currentColors.text} />
-                          <Text style={[styles.rowBtnText, { color: currentColors.text }]}>Yeniden Adlandır</Text>
+                          <Text style={[styles.rowBtnText, { color: currentColors.text }]}>{t('details.rename')}</Text>
                         </TouchableOpacity>
                       )}
 
                       <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>Etiketler</Text>
+                        <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>{t('details.tags')}</Text>
                       </View>
                       <View style={styles.tagsContainer}>
                         {tagOptions.map((tag) => {
@@ -332,36 +331,36 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                   )}
 
                   <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>Dosya Detayları</Text>
+                    <Text style={[styles.sectionTitle, { color: currentColors.textSecondary }]}>{t('details.sectionTitle')}</Text>
                   </View>
 
                   <View style={styles.grid}>
                     <View style={[styles.gridItem, { backgroundColor: currentColors.surface }]}>
-                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>Dosya Boyutu</Text>
+                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>{t('details.size')}</Text>
                       <Text style={[styles.gridValue, { color: currentColors.text }]}>{FileService.formatFileSize(shown.size)}</Text>
                     </View>
 
                     <View style={[styles.gridItem, { backgroundColor: currentColors.surface }]}>
-                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>Uzantı</Text>
+                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>{t('details.extension')}</Text>
                       <Text style={[styles.gridValue, { color: currentColors.primary }]}>
                         {(shown.extension || shown.category).toUpperCase()}
                       </Text>
                     </View>
 
                     <View style={[styles.gridItem, { backgroundColor: currentColors.surface }]}>
-                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>Kategori</Text>
+                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>{t('details.category')}</Text>
                       <Text style={[styles.gridValue, { color: currentColors.text }]}>{CATEGORY_LABELS[shown.category] ?? '—'}</Text>
                     </View>
 
                     <View style={[styles.gridItem, { backgroundColor: currentColors.surface }]}>
-                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>Son Erişim</Text>
+                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>{t('details.lastOpened')}</Text>
                       <Text style={[styles.gridValue, { color: currentColors.text }]}>{formatDateTime(shown.lastOpened)}</Text>
                     </View>
                   </View>
 
                   {shown.originalName && shown.originalName !== shown.name ? (
                     <View style={[styles.pathBox, { backgroundColor: currentColors.surface, marginBottom: 10 }]}>
-                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>Özgün Ad</Text>
+                      <Text style={[styles.gridLabel, { color: currentColors.textMuted }]}>{t('details.originalName')}</Text>
                       <Text style={[styles.pathText, { color: currentColors.textSecondary }]} numberOfLines={2} selectable>
                         {shown.originalName}
                       </Text>
@@ -370,16 +369,16 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
 
                   <View style={[styles.pathBox, { backgroundColor: currentColors.surface }]}>
                     <View style={styles.pathHeader}>
-                      <Text style={[styles.gridLabel, { color: currentColors.textMuted, marginBottom: 0 }]}>Konum (URI)</Text>
+                      <Text style={[styles.gridLabel, { color: currentColors.textMuted, marginBottom: 0 }]}>{t('details.location')}</Text>
                       <TouchableOpacity
                         onPress={handleCopyPath}
                         hitSlop={HIT_SLOP}
                         style={styles.copyBtn}
                         accessibilityRole="button"
-                        accessibilityLabel="Dosya yolunu kopyala"
+                        accessibilityLabel={t('details.copyPathA11y')}
                       >
                         <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color={currentColors.primary} />
-                        <Text style={[styles.copyText, { color: currentColors.primary }]}>{copied ? 'Kopyalandı' : 'Kopyala'}</Text>
+                        <Text style={[styles.copyText, { color: currentColors.primary }]}>{copied ? t('details.copied') : t('details.copy')}</Text>
                       </TouchableOpacity>
                     </View>
                     <Text style={[styles.pathText, { color: currentColors.textSecondary }]} numberOfLines={3} selectable>
@@ -392,10 +391,10 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                       style={[styles.removeBtn, { borderColor: currentColors.danger }]}
                       onPress={handleRemove}
                       accessibilityRole="button"
-                      accessibilityLabel="Listeden kaldır"
+                      accessibilityLabel={t('common.removeFromList')}
                     >
                       <Ionicons name="trash-outline" size={18} color={currentColors.danger} />
-                      <Text style={[styles.removeBtnText, { color: currentColors.danger }]}>Listeden Kaldır</Text>
+                      <Text style={[styles.removeBtnText, { color: currentColors.danger }]}>{t('common.removeFromList')}</Text>
                     </TouchableOpacity>
                   )}
                 </ScrollView>
@@ -406,7 +405,7 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                     onPress={() => onShare?.(shown)}
                     disabled={!!shown.missing || !onShare}
                     accessibilityRole="button"
-                    accessibilityLabel="Paylaş"
+                    accessibilityLabel={t('common.share')}
                     accessibilityState={{ disabled: !!shown.missing || !onShare }}
                   >
                     <Ionicons name="share-social-outline" size={20} color={currentColors.text} />
@@ -420,11 +419,11 @@ export const FileDetailsModal: React.FC<FileDetailsModalProps> = ({
                     }}
                     disabled={!!shown.missing}
                     accessibilityRole="button"
-                    accessibilityLabel="Dosyayı aç"
+                    accessibilityLabel={t('details.openA11y')}
                     accessibilityState={{ disabled: !!shown.missing }}
                   >
                     <MaterialCommunityIcons name="eye-outline" size={20} color={currentColors.onPrimary} />
-                    <Text style={[styles.primaryOpenBtnText, { color: currentColors.onPrimary }]}>Dosyayı İncele</Text>
+                    <Text style={[styles.primaryOpenBtnText, { color: currentColors.onPrimary }]}>{t('details.openButton')}</Text>
                   </TouchableOpacity>
                 </View>
               </>

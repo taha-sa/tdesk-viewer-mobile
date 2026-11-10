@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking, ScrollView, A
 import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
-import { APP_DISPLAY_NAME, OPEN_SOURCE, getAppVersion } from '../utils/appInfo';
+import { APP_DISPLAY_NAME, getOpenSource, getAppVersion } from '../utils/appInfo';
+import { t } from '../i18n';
 
 interface AboutModalProps {
   visible: boolean;
@@ -36,7 +37,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Açılamadı', `${what} açılamadı. Bu cihazda uygun bir uygulama bulunmuyor olabilir.`);
+      Alert.alert(t('about.openFailTitle'), t('about.openFailBody', { what }));
     }
   };
 
@@ -58,14 +59,14 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: currentColors.text }]} accessibilityRole="header">{APP_DISPLAY_NAME}</Text>
-              <Text style={[styles.version, { color: currentColors.primary }]}>Sürüm {getAppVersion()}</Text>
+              <Text style={[styles.version, { color: currentColors.primary }]}>{t('settings.version', { version: getAppVersion() })}</Text>
             </View>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeBtn}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"
-              accessibilityLabel="Hakkında penceresini kapat"
+              accessibilityLabel={t('about.closeA11y')}
             >
               <Ionicons name="close" size={24} color={currentColors.text} />
             </TouchableOpacity>
@@ -73,24 +74,23 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
             <Text style={[styles.desc, { color: currentColors.textSecondary }]}>
-              Reklamsız evrensel belge ve kod görüntüleyici. Belgeler cihazınızda açılır; uygulama belgelerinizi bir sunucuya yüklemez.
-              Matematik (LaTeX) içeren Markdown dosyaları, formülleri göstermek için KaTeX dosyalarını internetten indirebilir.
+              {t('about.desc')}
             </Text>
 
             <View style={styles.contactSection}>
-              <Text style={[styles.sectionTitle, { color: currentColors.textMuted }]}>İLETİŞİM & DESTEK</Text>
+              <Text style={[styles.sectionTitle, { color: currentColors.textMuted }]}>{t('about.sectionContact')}</Text>
 
               <TouchableOpacity
                 style={[styles.contactCard, { backgroundColor: currentColors.surface, borderColor: currentColors.border }]}
-                onPress={() => openLink('mailto:t-desk@outlook.com.tr', 'E-posta uygulaması')}
+                onPress={() => openLink('mailto:t-desk@outlook.com.tr', t('about.emailApp'))}
                 accessibilityRole="link"
-                accessibilityLabel="E-posta gönder: t-desk@outlook.com.tr"
+                accessibilityLabel={t('about.emailA11y')}
               >
                 <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
                   <Ionicons name="mail-outline" size={20} color="#3B82F6" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.contactLabel, { color: currentColors.textSecondary }]}>E-Posta</Text>
+                  <Text style={[styles.contactLabel, { color: currentColors.textSecondary }]}>{t('about.emailLabel')}</Text>
                   <Text style={[styles.contactValue, { color: currentColors.text }]}>t-desk@outlook.com.tr</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={currentColors.textMuted} />
@@ -98,9 +98,9 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
 
               <TouchableOpacity
                 style={[styles.contactCard, { backgroundColor: currentColors.surface, borderColor: currentColors.border }]}
-                onPress={() => openLink('https://instagram.com/tdesk.studio', 'Instagram sayfası')}
+                onPress={() => openLink('https://instagram.com/tdesk.studio', t('about.instagramPage'))}
                 accessibilityRole="link"
-                accessibilityLabel="Instagram sayfasını aç: tdesk.studio"
+                accessibilityLabel={t('about.instagramA11y')}
               >
                 <View style={[styles.iconBox, { backgroundColor: 'rgba(236, 72, 153, 0.1)' }]}>
                   <Ionicons name="logo-instagram" size={20} color="#EC4899" />
@@ -114,17 +114,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
             </View>
 
             <View style={styles.contactSection}>
-              <Text style={[styles.sectionTitle, { color: currentColors.textMuted }]}>AÇIK KAYNAK LİSANSLARI</Text>
+              <Text style={[styles.sectionTitle, { color: currentColors.textMuted }]}>{t('about.sectionOss')}</Text>
               <Text style={[styles.ossIntro, { color: currentColors.textSecondary }]}>
-                Bu uygulama aşağıdaki açık kaynak yazılımları kullanır. Lisans türleri paketlerin kendi bildirimlerine göredir; tam metinler ilgili projelerde bulunur.
+                {t('about.ossIntro')}
               </Text>
               <View style={[styles.ossBox, { backgroundColor: currentColors.surface, borderColor: currentColors.border }]}>
-                {OPEN_SOURCE.map((o, i) => (
+                {getOpenSource().map((o, i) => (
                   <View
                     key={o.name}
                     style={[styles.ossRow, i > 0 && { borderTopWidth: 1, borderTopColor: currentColors.border }]}
                     accessible
-                    accessibilityLabel={`${o.name}, lisans: ${o.license}, kullanım: ${o.use}`}
+                    accessibilityLabel={t('about.ossA11y', { name: o.name, license: o.license, use: o.use })}
                   >
                     <Text style={[styles.ossName, { color: currentColors.text }]}>{o.name}</Text>
                     <Text style={[styles.ossMeta, { color: currentColors.textSecondary }]}>{o.license} · {o.use}</Text>
@@ -134,7 +134,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, theme, onClose 
             </View>
 
             <View style={styles.signatureBox}>
-              <Text style={[styles.signatureLabel, { color: currentColors.textMuted }]}>geliştiren</Text>
+              <Text style={[styles.signatureLabel, { color: currentColors.textMuted }]}>{t('about.developedBy')}</Text>
               <Text style={[styles.signatureName, { color: currentColors.primary }]}>Taha Şaprak</Text>
             </View>
           </ScrollView>

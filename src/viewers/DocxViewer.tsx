@@ -8,6 +8,7 @@ import * as FileSystem from 'expo-file-system';
 import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import { FileService, base64ToBytes } from '../services/fileService';
+import { t } from '../i18n';
 
 interface DocxViewerProps {
   file: FileInfo;
@@ -551,7 +552,7 @@ function renderDrawing(node: XNode, ctx: Ctx): string {
       const ext = descendant(scope, 'wp:extent');
       const cx = ext ? toInt(ext.a.cx) : undefined;
       const docPr = descendant(scope, 'wp:docPr');
-      const alt = docPr && docPr.a.descr ? docPr.a.descr : 'Görsel';
+      const alt = docPr && docPr.a.descr ? docPr.a.descr : t('docx.image');
       let style = 'max-width:100%;height:auto;';
       if (cx && cx > 0) {
         const px = Math.max(8, Math.min(2000, Math.round(cx / 9525)));
@@ -560,7 +561,7 @@ function renderDrawing(node: XNode, ctx: Ctx): string {
       html += `<img src="${uri}" alt="${escapeHtml(alt)}" style="${style}">`;
     } else {
       ctx.skippedImages++;
-      html += '<span class="ph">[Görsel]</span>';
+      html += '<span class="ph">[' + t('docx.image') + ']</span>';
     }
   }
   const tx = descendant(scope, 'w:txbxContent');
@@ -838,7 +839,7 @@ interface Cell {
 }
 
 function renderTable(tbl: XNode, ctx: Ctx): string {
-  if (ctx.depth > 5) return '<p class="ph">[İç içe tablo gösterilemiyor]</p>';
+  if (ctx.depth > 5) return '<p class="ph">[' + t('docx.nestedTable') + ']</p>';
   const tblPr = kid(tbl, 'w:tblPr');
   const styleRes = resolveStyle(ctx.styles, val(kid(tblPr, 'w:tblStyle')));
   const rowsNodes = kids(tbl, 'w:tr');
@@ -980,7 +981,7 @@ function renderDocxHtml(inp: DocxInput): { html: string; notes: string[] } {
   const root = parseXml(inp.documentXml);
   const doc = kid(root, 'w:document');
   const body = kid(doc, 'w:body');
-  if (!body) throw new Error('w:body bulunamadı');
+  if (!body) throw new Error(t('docx.noBody'));
 
   let main = renderBlocks(body.c, ctx);
 
@@ -1008,15 +1009,15 @@ function renderDocxHtml(inp: DocxInput): { html: string; notes: string[] } {
   const en = renderNotes(inp.endnotesXml, 'w:endnotes', 'w:endnote', ctx.enOrder, ctx, 'letter');
 
   if (stripTags(header)) main = `<div class="hf">${header}</div>` + main;
-  if (fn) main += `<h4 class="nh">Dipnotlar</h4>${fn}`;
-  if (en) main += `<h4 class="nh">Son notlar</h4>${en}`;
+  if (fn) main += `<h4 class="nh">${t('docx.footnotes')}</h4>${fn}`;
+  if (en) main += `<h4 class="nh">${t('docx.endnotes')}</h4>${en}`;
   if (stripTags(footer)) main += `<div class="hf">${footer}</div>`;
 
   const notes: string[] = [];
-  if (ctx.truncated) notes.push('Belge çok uzun olduğu için yalnızca ilk bölümü gösteriliyor.');
-  if (ctx.skippedImages > 0) notes.push(`${ctx.skippedImages} görsel boyut veya biçim nedeniyle gösterilemedi.`);
+  if (ctx.truncated) notes.push(t('docx.truncated'));
+  if (ctx.skippedImages > 0) notes.push(t('docx.skippedImages', { count: ctx.skippedImages }));
   const hasContent = stripTags(main).length > 0 || /<img\b/.test(main);
-  if (!hasContent) main = '<p class="ph">Belge içeriği boş veya metin içermiyor.</p>';
+  if (!hasContent) main = '<p class="ph">' + t('docx.empty') + '</p>';
   return { html: main, notes };
 }
 // @@PURE-END
@@ -1043,7 +1044,7 @@ async function readXmlPart(zip: JSZip, path: string | undefined): Promise<string
   const f = zip.file(path);
   if (!f) return undefined;
   if (zipEntrySize(zip, path) > MAX_XML_BYTES) {
-    throw new DocxError('too_large', 'Belgenin içeriği çok büyük; güvenli şekilde açılamıyor.');
+    throw new DocxError('too_large', t('docx.contentTooLarge'));
   }
   return f.async('string');
 }
@@ -1058,18 +1059,18 @@ function relTarget(rels: Record<string, Rel>, typeSuffix: string): string | unde
 
 async function readDocxBase64(file: FileInfo): Promise<string> {
   if (file.size > MAX_DOCX_BYTES) {
-    throw new DocxError('too_large', `Belge çok büyük (${FileService.formatFileSize(file.size)}). En fazla ${FileService.formatFileSize(MAX_DOCX_BYTES)} desteklenir.`);
+    throw new DocxError('too_large', t('docx.tooLarge', { size: FileService.formatFileSize(file.size), max: FileService.formatFileSize(MAX_DOCX_BYTES) }));
   }
   if (file.base64) return file.base64;
   try {
     const info = await FileSystem.getInfoAsync(file.uri);
     if (info.exists && typeof info.size === 'number' && info.size > MAX_DOCX_BYTES) {
-      throw new DocxError('too_large', `Belge çok büyük (${FileService.formatFileSize(info.size)}). En fazla ${FileService.formatFileSize(MAX_DOCX_BYTES)} desteklenir.`);
+      throw new DocxError('too_large', t('docx.tooLarge', { size: FileService.formatFileSize(info.size), max: FileService.formatFileSize(MAX_DOCX_BYTES) }));
     }
     return await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
   } catch (e) {
     if (e instanceof DocxError) throw e;
-    throw new DocxError('read_failed', 'Belge dosyası okunamadı. Dosya silinmiş veya erişilemiyor olabilir.');
+    throw new DocxError('read_failed', t('docx.readFail'));
   }
 }
 
@@ -1082,16 +1083,16 @@ async function loadDocx(file: FileInfo, paperHex: string): Promise<LoadedDocx> {
   const b64 = await readDocxBase64(file);
   const head = base64ToBytes(b64.slice(0, 64));
   if (head.length >= 4 && head[0] === 0xd0 && head[1] === 0xcf && head[2] === 0x11 && head[3] === 0xe0) {
-    throw new DocxError('legacy', 'Bu dosya parola ile korunuyor veya eski Word (.doc) biçiminde. Yalnızca parolasız .docx belgeleri görüntülenebilir.');
+    throw new DocxError('legacy', t('docx.legacy'));
   }
   if (!(head.length >= 2 && head[0] === 0x50 && head[1] === 0x4b)) {
-    throw new DocxError('invalid', 'Bu dosya geçerli bir Word (.docx) belgesi değil.');
+    throw new DocxError('invalid', t('docx.invalid'));
   }
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(b64, { base64: true });
   } catch {
-    throw new DocxError('corrupt', 'Belge bozuk görünüyor ve açılamadı.');
+    throw new DocxError('corrupt', t('docx.corrupt'));
   }
 
   const rootRels = parseRels(await readXmlPart(zip, '_rels/.rels'));
@@ -1099,7 +1100,7 @@ async function loadDocx(file: FileInfo, paperHex: string): Promise<LoadedDocx> {
   const officeTarget = relTarget(rootRels, '/officeDocument');
   if (officeTarget) docPath = resolvePartPath('', officeTarget);
   if (!zip.file(docPath)) {
-    throw new DocxError('invalid', 'Word belgesi içeriği bulunamadı (word/document.xml yok). Dosya geçerli bir .docx değil.');
+    throw new DocxError('invalid', t('docx.noXml'));
   }
   const slash = docPath.lastIndexOf('/');
   const dir = slash < 0 ? '' : docPath.slice(0, slash + 1);
@@ -1153,7 +1154,7 @@ async function loadDocx(file: FileInfo, paperHex: string): Promise<LoadedDocx> {
   try {
     result = renderDocxHtml({ documentXml, stylesXml, numberingXml, relsXml, footnotesXml, endnotesXml, headerXml, footerXml, images, paperHex });
   } catch {
-    throw new DocxError('corrupt', 'Belge içeriği ayrıştırılamadı. Dosya bozuk olabilir.');
+    throw new DocxError('corrupt', t('docx.parseFail'));
   }
   return result;
 }
@@ -1183,7 +1184,7 @@ export const DocxViewer: React.FC<DocxViewerProps> = ({ file, appTheme = 'emeral
         .catch((err) => {
           if (cancelled) return;
           if (__DEV__) console.warn('DOCX ayrıştırma hatası:', err);
-          const message = err instanceof DocxError ? err.message : 'Belge açılamadı. Dosya bozuk veya desteklenmeyen bir biçimde olabilir.';
+          const message = err instanceof DocxError ? err.message : t('docx.openFail');
           setState({ status: 'error', message });
         });
     }, 0);
@@ -1244,7 +1245,7 @@ ol.notes { font-size: 0.9em; color: ${c.textSecondary}; }
     const url = req.url || '';
     if (/^(https?:|mailto:|tel:)/i.test(url)) {
       Linking.openURL(url).catch(() => {
-        Alert.alert('Bağlantı açılamadı', 'Bu bağlantıyı açabilecek bir uygulama bulunamadı.');
+        Alert.alert(t('docx.linkFailTitle'), t('docx.linkFailBody'));
       });
       return false;
     }
@@ -1265,12 +1266,12 @@ ol.notes { font-size: 0.9em; color: ${c.textSecondary}; }
       {state.status === 'loading' ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={currentColors.primary} />
-          <Text style={[styles.loadingText, { color: currentColors.textSecondary }]}>Word belgesi ayrıştırılıyor...</Text>
+          <Text style={[styles.loadingText, { color: currentColors.textSecondary }]}>{t('docx.parsing')}</Text>
         </View>
       ) : state.status === 'error' ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={44} color={currentColors.warning} />
-          <Text style={[styles.errorTitle, { color: currentColors.text }]}>Belge görüntülenemedi</Text>
+          <Text style={[styles.errorTitle, { color: currentColors.text }]}>{t('docx.displayFail')}</Text>
           <Text style={[styles.errorText, { color: currentColors.textSecondary }]} accessibilityRole="alert">
             {state.message}
           </Text>
@@ -1279,10 +1280,10 @@ ol.notes { font-size: 0.9em; color: ${c.textSecondary}; }
             onPress={() => setReloadKey((k) => k + 1)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
-            accessibilityLabel="Yeniden dene"
+            accessibilityLabel={t('common.retry')}
           >
             <Ionicons name="refresh" size={16} color={currentColors.primary} />
-            <Text style={[styles.retryText, { color: currentColors.primary }]}>Yeniden dene</Text>
+            <Text style={[styles.retryText, { color: currentColors.primary }]}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       ) : (

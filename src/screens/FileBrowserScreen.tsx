@@ -17,6 +17,7 @@ import {
   sortFiles,
   splitMissing,
 } from '../utils/fileList';
+import { t } from '../i18n';
 
 interface FileBrowserScreenProps {
   appTheme: AppThemeMode;
@@ -26,10 +27,10 @@ interface FileBrowserScreenProps {
 
 type Row = { kind: 'file'; file: FileInfo } | { kind: 'header'; id: string; title: string };
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'date', label: 'Tarih' },
-  { key: 'name', label: 'Ad' },
-  { key: 'size', label: 'Boyut' },
+const getSortOptions = (): { key: SortKey; label: string }[] => [
+  { key: 'date', label: t('browser.sortDate') },
+  { key: 'name', label: t('common.name') },
+  { key: 'size', label: t('browser.sortSize') },
 ];
 
 const HIT_SLOP = { top: 8, bottom: 8, left: 6, right: 6 };
@@ -66,7 +67,7 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
     const { present, missing } = splitMissing(filtered);
     const out: Row[] = sortFiles(present, sortKey, sortDir).map((file) => ({ kind: 'file', file }));
     if (missing.length > 0) {
-      out.push({ kind: 'header', id: 'missing-header', title: `Cihazda bulunamayan favoriler (${missing.length})` });
+      out.push({ kind: 'header', id: 'missing-header', title: t('browser.missingFavs', { count: missing.length }) });
       for (const file of sortFiles(missing, sortKey, sortDir)) out.push({ kind: 'file', file });
     }
     return out;
@@ -132,35 +133,35 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
   ) : files.length === 0 ? (
     <View style={styles.emptyState}>
       <Ionicons name="folder-open-outline" size={48} color={currentColors.textMuted} />
-      <Text style={[styles.emptyTitle, { color: currentColors.text }]}>Henüz dosya yok</Text>
+      <Text style={[styles.emptyTitle, { color: currentColors.text }]}>{t('browser.emptyTitle')}</Text>
       <Text style={[styles.emptyDesc, { color: currentColors.textSecondary }]}>
-        Açtığınız belgeler burada listelenir. Başlamak için cihazınızdan bir dosya seçin.
+        {t('browser.emptyBody')}
       </Text>
       <TouchableOpacity
         style={[styles.emptyBtn, { backgroundColor: currentColors.primary }]}
         onPress={handlePickDocument}
         disabled={picking}
         accessibilityRole="button"
-        accessibilityLabel="Cihazdan dosya aç"
+        accessibilityLabel={t('browser.pickA11y')}
       >
-        <Text style={[styles.emptyBtnText, { color: currentColors.onPrimary }]}>Cihazdan Dosya Aç</Text>
+        <Text style={[styles.emptyBtnText, { color: currentColors.onPrimary }]}>{t('browser.pickButton')}</Text>
       </TouchableOpacity>
     </View>
   ) : (
     <View style={styles.emptyState}>
       <Ionicons name="search-outline" size={48} color={currentColors.textMuted} />
-      <Text style={[styles.emptyTitle, { color: currentColors.text }]}>Sonuç bulunamadı</Text>
+      <Text style={[styles.emptyTitle, { color: currentColors.text }]}>{t('browser.noResults')}</Text>
       <Text style={[styles.emptyDesc, { color: currentColors.textSecondary }]}>
-        {favoritesOnly ? 'Bu filtrelere uyan favori dosya yok.' : 'Aramanıza veya seçili kategoriye uyan dosya yok.'}
+        {favoritesOnly ? t('browser.noFavMatch') : t('browser.noMatch')}
       </Text>
       {hasFilters ? (
         <TouchableOpacity
           style={[styles.emptyBtn, { backgroundColor: currentColors.primary }]}
           onPress={clearFilters}
           accessibilityRole="button"
-          accessibilityLabel="Filtreleri temizle"
+          accessibilityLabel={t('browser.clearFilters')}
         >
-          <Text style={[styles.emptyBtnText, { color: currentColors.onPrimary }]}>Filtreleri Temizle</Text>
+          <Text style={[styles.emptyBtnText, { color: currentColors.onPrimary }]}>{t('browser.clearFilters')}</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -176,7 +177,7 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
           categoryCounts={counts}
-          placeholder="Ad veya etiket ara..."
+          placeholder={t('browser.searchPlaceholder')}
         />
 
         <ScrollView
@@ -197,7 +198,7 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
             onPress={() => setFavoritesOnly((v) => !v)}
             hitSlop={HIT_SLOP}
             accessibilityRole="button"
-            accessibilityLabel="Yalnızca favoriler"
+            accessibilityLabel={t('browser.favOnlyA11y')}
             accessibilityState={{ selected: favoritesOnly }}
           >
             <Ionicons
@@ -205,14 +206,14 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
               size={14}
               color={favoritesOnly ? currentColors.warning : currentColors.textSecondary}
             />
-            <Text style={[styles.pillText, { color: favoritesOnly ? currentColors.primary : currentColors.textSecondary }]}>Favoriler</Text>
+            <Text style={[styles.pillText, { color: favoritesOnly ? currentColors.primary : currentColors.textSecondary }]}>{t('common.favorites')}</Text>
           </TouchableOpacity>
 
           <View style={[styles.divider, { backgroundColor: currentColors.border }]} />
 
-          {SORT_OPTIONS.map((opt) => {
+          {getSortOptions().map((opt) => {
             const active = sortKey === opt.key;
-            const dirWord = sortDir === 'asc' ? 'artan' : 'azalan';
+            const dirWord = sortDir === 'asc' ? t('browser.ascending') : t('browser.descending');
             return (
               <TouchableOpacity
                 key={opt.key}
@@ -226,7 +227,7 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
                 onPress={() => handleSortPress(opt.key)}
                 hitSlop={HIT_SLOP}
                 accessibilityRole="button"
-                accessibilityLabel={active ? `Sırala: ${opt.label}, ${dirWord}. Yönü değiştirmek için dokunun` : `Sırala: ${opt.label}`}
+                accessibilityLabel={active ? t('browser.sortA11yActive', { label: opt.label, dir: dirWord }) : t('browser.sortA11y', { label: opt.label })}
                 accessibilityState={{ selected: active }}
               >
                 <Text style={[styles.pillText, { color: active ? currentColors.primary : currentColors.textSecondary }]}>{opt.label}</Text>
@@ -249,11 +250,11 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
           disabled={picking}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 8 }}
           accessibilityRole="button"
-          accessibilityLabel="Cihazdan dosya aç"
+          accessibilityLabel={t('browser.pickA11y')}
           accessibilityState={{ disabled: picking }}
         >
           <Ionicons name="folder-open-outline" size={16} color={currentColors.primary} />
-          <Text style={[styles.importQuickText, { color: currentColors.primary }]}>{picking ? 'Açılıyor...' : 'Dosya Aç'}</Text>
+          <Text style={[styles.importQuickText, { color: currentColors.primary }]}>{picking ? t('common.opening') + '…' : t('common.openFile')}</Text>
         </TouchableOpacity>
       </View>
 

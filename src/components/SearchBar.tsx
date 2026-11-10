@@ -3,6 +3,8 @@ import { View, TextInput, StyleSheet, TouchableOpacity, Text, ScrollView } from 
 import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode, FileType } from '../types';
 import { Colors } from '../theme/colors';
+import { CATEGORY_LABELS } from '../utils/fileList';
+import { t } from '../i18n';
 
 interface SearchBarProps {
   value: string;
@@ -15,18 +17,18 @@ interface SearchBarProps {
   categoryCounts?: Partial<Record<FileType | 'all', number>>;
 }
 
-const CATEGORIES: { id: FileType | 'all'; label: string }[] = [
-  { id: 'all', label: 'Tümü' },
-  { id: 'pdf', label: 'PDF' },
-  { id: 'pptx', label: 'Sunum (PPTX)' },
-  { id: 'epub', label: 'E-Kitap (EPUB)' },
-  { id: 'code', label: 'Kod & Diller' },
-  { id: 'spreadsheet', label: 'Tablo / Excel' },
-  { id: 'docx', label: 'Word (DOCX)' },
-  { id: 'markdown', label: 'Markdown' },
-  { id: 'image', label: 'Görsel / SVG' },
-  { id: 'archive', label: 'Arşiv (ZIP)' },
-  { id: 'text', label: 'Metin / Log' },
+const getCategories = (): { id: FileType | 'all'; label: string }[] => [
+  { id: 'all', label: t('common.all') },
+  { id: 'pdf', label: CATEGORY_LABELS.pdf },
+  { id: 'pptx', label: CATEGORY_LABELS.pptx },
+  { id: 'epub', label: CATEGORY_LABELS.epub },
+  { id: 'code', label: CATEGORY_LABELS.code },
+  { id: 'spreadsheet', label: CATEGORY_LABELS.spreadsheet },
+  { id: 'docx', label: CATEGORY_LABELS.docx },
+  { id: 'markdown', label: CATEGORY_LABELS.markdown },
+  { id: 'image', label: CATEGORY_LABELS.image },
+  { id: 'archive', label: CATEGORY_LABELS.archive },
+  { id: 'text', label: CATEGORY_LABELS.text },
 ];
 
 const CLEAR_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
@@ -34,7 +36,7 @@ const CLEAR_HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
-  placeholder = 'Belge veya kod ara...',
+  placeholder = t('search.placeholder'),
   theme = 'dark',
   selectedCategory = 'all',
   onSelectCategory,
@@ -64,8 +66,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           autoCapitalize="none"
           returnKeyType="search"
           clearButtonMode="never"
-          accessibilityLabel="Dosya ara"
-          accessibilityHint="Dosya adı veya etikete göre arar"
+          accessibilityLabel={t('search.a11y')}
+          accessibilityHint={t('search.hint')}
         />
         {value.length > 0 && (
           <TouchableOpacity
@@ -73,7 +75,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             style={styles.clearBtn}
             hitSlop={CLEAR_HIT_SLOP}
             accessibilityRole="button"
-            accessibilityLabel="Aramayı temizle"
+            accessibilityLabel={t('search.clear')}
           >
             <Ionicons name="close-circle" size={20} color={currentColors.textMuted} />
           </TouchableOpacity>
@@ -88,7 +90,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           style={styles.chipScroll}
           contentContainerStyle={styles.chipRow}
         >
-          {CATEGORIES.map((cat) => {
+          {getCategories().map((cat) => {
             const isSelected = selectedCategory === cat.id;
             const count = categoryCounts?.[cat.id];
             const label = count !== undefined ? `${cat.label} (${count})` : cat.label;

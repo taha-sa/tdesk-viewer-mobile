@@ -26,11 +26,13 @@ import { parseStoredSettings, serializeSettings, shouldRelock, DEFAULT_SETTINGS 
 // Screens
 import { HomeScreen } from './src/screens/HomeScreen';
 import { FileBrowserScreen } from './src/screens/FileBrowserScreen';
+import { LanguagePref, resolveLanguage, setActiveLanguage } from './src/i18n';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { ViewerScreen } from './src/screens/ViewerScreen';
 import { ToolsScreen } from './src/screens/ToolsScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { LockScreen } from './src/components/LockScreen';
+import { t } from './src/i18n';
 
 type TabRoute = 'home' | 'browser' | 'tools' | 'settings';
 
@@ -55,7 +57,11 @@ function AppShell() {
   const [browserInitialCategory, setBrowserInitialCategory] = useState<FileType | 'all'>('all');
   const [themePreference, setThemePreference] = useState<ThemePreference>(DEFAULT_SETTINGS.themePreference);
   const [codeTheme, setCodeTheme] = useState<SyntaxTheme>(DEFAULT_SYNTAX_THEME_ID);
+  const [languagePref, setLanguagePref] = useState<LanguagePref>(DEFAULT_SETTINGS.language);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  // Etkin dili render sırasında, çocuklardan önce ayarla; t() bu değeri okur.
+  const activeLang = resolveLanguage(languagePref);
+  setActiveLanguage(activeLang);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [locked, setLocked] = useState(false);
   const [appActive, setAppActive] = useState(AppState.currentState !== 'background');
@@ -82,6 +88,7 @@ function AppShell() {
       const s = parseStoredSettings(raw);
       setThemePreference(s.themePreference);
       setCodeTheme(s.codeTheme);
+      setLanguagePref(s.language);
       setLockEnabled(lock);
       setLocked(lock);
       setSettingsLoaded(true);
@@ -100,9 +107,9 @@ function AppShell() {
 
   useEffect(() => {
     if (!settingsLoaded) return;
-    AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, serializeSettings({ themePreference, codeTheme }))
+    AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, serializeSettings({ themePreference, codeTheme, language: languagePref }))
       .catch(error => { if (__DEV__) console.warn('Ayarlar kaydedilemedi:', error); });
-  }, [themePreference, codeTheme, settingsLoaded]);
+  }, [themePreference, codeTheme, languagePref, settingsLoaded]);
 
   // Arka plana geçiş/dönüş: kilit etkinse ~30 sn'den uzun kalınmışsa yeniden kilitle.
   useEffect(() => {
@@ -144,7 +151,7 @@ function AppShell() {
         }
       } catch (err) {
         if (__DEV__) console.warn('Gelen URL işlenemedi:', err);
-        if (isMounted) Alert.alert('Dosya açılamadı', 'Gelen dosya işlenirken bir sorun oluştu.');
+        if (isMounted) Alert.alert(t('app.incomingFailTitle'), t('app.incomingFailBody'));
       }
     };
 
@@ -188,7 +195,7 @@ function AppShell() {
 
   const handleOpenFile = (file: FileInfo) => {
     if (file.missing) {
-      Alert.alert('Dosya bulunamadı', 'Bu dosya cihazdan silinmiş veya taşınmış olabilir.');
+      Alert.alert(t('common.fileNotFound'), t('app.fileMissingBody'));
       return;
     }
     // Son dosyalardan açılınca "son açılan" sırası güncellensin (kayıtta yoksa/sanal dosyaysa etkisiz).
@@ -224,7 +231,7 @@ function AppShell() {
       setLockEnabled(false);
       setLocked(false);
     } else {
-      Alert.alert('Hata', 'Kilit ayarı kaydedilemedi.');
+      Alert.alert(t('common.error'), t('app.lockSaveFail'));
     }
   }, []);
 
@@ -233,13 +240,13 @@ function AppShell() {
     const availability = await getLockAvailability();
     if (enabled) {
       if (!availability.available) return availability.description;
-      const r = await authenticate('Uygulama kilidini etkinleştirmek için kimliğinizi doğrulayın');
-      if (!r.ok) return r.message || 'Doğrulama başarısız oldu.';
+      const r = await authenticate(t('app.lockEnablePrompt'));
+      if (!r.ok) return r.message || t('lock.authFailed');
     } else if (availability.available) {
-      const r = await authenticate('Uygulama kilidini kapatmak için kimliğinizi doğrulayın');
-      if (!r.ok) return r.message || 'Doğrulama başarısız oldu.';
+      const r = await authenticate(t('app.lockDisablePrompt'));
+      if (!r.ok) return r.message || t('lock.authFailed');
     }
-    if (!(await saveLockEnabled(enabled))) return 'Ayar kaydedilemedi. Lütfen tekrar deneyin.';
+    if (!(await saveLockEnabled(enabled))) return t('app.settingSaveFail');
     setLockEnabled(enabled);
     return null;
   }, []);
@@ -274,12 +281,13 @@ function AppShell() {
   const showCover = lockEnabled && !appActive;
 
   const tabs: { id: TabRoute; label: string; icon: React.ComponentProps<typeof Ionicons>['name']; iconOff: React.ComponentProps<typeof Ionicons>['name'] }[] = [
-    { id: 'home', label: 'Ana sayfa', icon: 'home', iconOff: 'home-outline' },
-    { id: 'browser', label: 'Dosyalar', icon: 'folder', iconOff: 'folder-outline' },
+    { id: 'home', label: t('tabs.home'), icon: 'home', iconOff: 'home-outline' },
+    { id: 'browser', label: t('tabs.files'), icon: 'folder', iconOff: 'folder-outline' },
   ];
 
   return (
     <View
+      key={activeLang}
       style={[
         styles.root,
         {
@@ -298,9 +306,9 @@ function AppShell() {
           resetKey={activeFile ? (activeFile.id || activeFile.uri) : currentTab}
           appTheme={appTheme}
           onBack={goHome}
-          backLabel="Ana sayfaya dön"
-          title="Bir sorun oluştu"
-          description="Bu ekran beklenmedik bir hata verdi. Tekrar deneyebilir veya ana sayfaya dönebilirsiniz."
+          backLabel={t('app.backHome')}
+          title={t('app.errorTitle')}
+          description={t('app.errorBody')}
           logTag="T-DESK-APP-ERROR"
         >
           {activeFile ? (
@@ -337,6 +345,8 @@ function AppShell() {
                   onSelectThemePreference={setThemePreference}
                   codeTheme={codeTheme}
                   onSelectCodeTheme={handleSelectCodeTheme}
+                  languagePref={languagePref}
+                  onSelectLanguage={setLanguagePref}
                   appLockEnabled={lockEnabled}
                   onToggleAppLock={handleToggleAppLock}
                 />
@@ -384,7 +394,7 @@ function AppShell() {
             style={styles.tabButton}
             onPress={() => setCurrentTab('tools')}
             accessibilityRole="tab"
-            accessibilityLabel="Araçlar"
+            accessibilityLabel={t('tabs.tools')}
             accessibilityState={{ selected: currentTab === 'tools' }}
           >
             <View style={[styles.centerTabCircle, { backgroundColor: currentColors.primary, shadowColor: currentColors.primary }]}>
@@ -397,7 +407,7 @@ function AppShell() {
             hitSlop={TAB_HIT_SLOP}
             onPress={() => setCurrentTab('settings')}
             accessibilityRole="tab"
-            accessibilityLabel="Ayarlar"
+            accessibilityLabel={t('common.settings')}
             accessibilityState={{ selected: currentTab === 'settings' }}
           >
             <Ionicons

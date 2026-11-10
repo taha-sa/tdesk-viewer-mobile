@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { TDeskBridge, BRIDGE_PACKAGE, BridgeResult, PresentKey, PresentState } from '../../modules/tdesk-bridge/src';
 import { FileService } from './fileService';
 import type { FileInfo } from '../types';
+import { t } from '../i18n';
 
 export type { BridgeResult, PresentKey, PresentState };
 
@@ -25,7 +26,7 @@ export function isBridgeInstalled(): boolean {
 export async function sendToPc(file: FileInfo): Promise<string | null> {
   try {
     const copy = await FileService.exportCopy(file);
-    if (!copy) return 'Bu dosya gönderilemiyor.';
+    if (!copy) return t('bridge.err.cannotSend');
     await TDeskBridge.sendToBridge(copy);
     return null;
   } catch (e: any) {
@@ -37,7 +38,7 @@ export async function sendToPc(file: FileInfo): Promise<string | null> {
 export async function presentOnPc(file: FileInfo): Promise<string | null> {
   try {
     const copy = await FileService.exportCopy(file);
-    if (!copy) return 'Bu dosya gönderilemiyor.';
+    if (!copy) return t('bridge.err.cannotSend');
     await TDeskBridge.present(copy);
     return null;
   } catch (e: any) {
@@ -60,7 +61,7 @@ export function onBridgeResult(cb: (r: BridgeResult) => void): { remove(): void 
 
 function friendly(e: any): string {
   const code = String(e?.code || '');
-  if (code === 'ERR_NO_BRIDGE') return 'T-Bridge kurulu değil.';
-  if (code === 'ERR_BRIDGE_UNAVAILABLE') return 'T-Bridge\'e bağlanılamadı. Uygulamayı bir kez açıp tekrar deneyin.';
-  return 'T-Bridge ile iletişim kurulamadı.';
+  if (code === 'ERR_NO_BRIDGE') return t('bridge.err.notInstalled');
+  if (code === 'ERR_BRIDGE_UNAVAILABLE') return t('bridge.err.unavailable');
+  return t('bridge.err.generic');
 }

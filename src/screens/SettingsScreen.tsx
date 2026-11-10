@@ -10,6 +10,7 @@ import { loadPdfEngine, savePdfEngine, PdfEngine } from '../utils/pdfEngine';
 import { getLockAvailability, LockAvailability } from '../services/appLock';
 import { APP_DISPLAY_NAME, getAppVersion } from '../utils/appInfo';
 import { AppThemeMode, SyntaxTheme, ThemePreference } from '../types';
+import { t, LanguagePref } from '../i18n';
 
 interface SettingsScreenProps {
   /** Çözülmüş (somut) tema */
@@ -18,6 +19,8 @@ interface SettingsScreenProps {
   onSelectThemePreference: (pref: ThemePreference) => void;
   codeTheme: SyntaxTheme;
   onSelectCodeTheme: (theme: SyntaxTheme) => void;
+  languagePref: LanguagePref;
+  onSelectLanguage: (pref: LanguagePref) => void;
   appLockEnabled: boolean;
   /** Başarılıysa null, değilse kullanıcıya gösterilecek hata metni döner. */
   onToggleAppLock: (enabled: boolean) => Promise<string | null>;
@@ -31,9 +34,16 @@ interface ThemeCard {
 }
 
 // Modül düzeyinde: her render'da yeniden oluşturulmaz.
-const THEME_CARDS: readonly ThemeCard[] = [
-  { id: 'system', name: 'Sistem', desc: 'Cihazın açık/koyu ayarını izler', icon: 'phone-portrait' },
+const buildThemeCards = (): readonly ThemeCard[] => [
+  { id: 'system', get name() { return t('settings.themeSystem'); }, get desc() { return t('settings.themeSystemDesc'); }, icon: 'phone-portrait' },
   ...THEME_OPTIONS,
+];
+/** Dil adları kendi dillerinde yazılır; yalnız "sistem" seçeneği çevrilir. */
+const LANGUAGE_CHOICES = (): { id: LanguagePref; label: string }[] => [
+  { id: 'system', label: t('settings.langSystem') },
+  { id: 'tr', label: 'Türkçe' },
+  { id: 'en', label: 'English' },
+  { id: 'de', label: 'Deutsch' },
 ];
 const CODE_THEME_ENTRIES = (Object.keys(SYNTAX_THEMES) as SyntaxTheme[]).map(key => ({ key, def: SYNTAX_THEMES[key] }));
 
@@ -43,6 +53,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onSelectThemePreference,
   codeTheme,
   onSelectCodeTheme,
+  languagePref,
+  onSelectLanguage,
   appLockEnabled,
   onToggleAppLock,
 }) => {
@@ -59,7 +71,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   }, []);
   const choosePdfEngine = async (e: PdfEngine) => {
     setPdfEngine(e);
-    if (!(await savePdfEngine(e))) Alert.alert('Kaydedilemedi', 'PDF motoru tercihi kaydedilemedi.');
+    if (!(await savePdfEngine(e))) Alert.alert(t('settings.saveFailTitle'), t('settings.pdfEngineSaveFail'));
   };
 
   const handleCheckUpdate = async () => {
@@ -69,23 +81,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       // 1) APK gerektirmeyen kod güncellemesi (varsa indirilir, yeniden başlatınca uygulanır)
       const code = await fetchCodeUpdate();
       if (code === 'ready') {
-        Alert.alert('Güncelleme hazır', 'Yeni sürüm indirildi. Uygulamayı yeniden başlatarak uygulayabilirsiniz.', [
-          { text: 'Sonra', style: 'cancel' },
-          { text: 'Yeniden başlat', onPress: () => { void restartApp(); } },
+        Alert.alert(t('settings.updateReadyTitle'), t('settings.updateReadyBody'), [
+          { text: t('common.later'), style: 'cancel' },
+          { text: t('common.restart'), onPress: () => { void restartApp(); } },
         ]);
         return;
       }
       // 2) Yeni APK (yerel değişiklik) var mı?
       const result = await checkForUpdate();
       if (result.status === 'available') {
-        Alert.alert('Güncelleme mevcut', formatUpdateMessage(result), [
-          { text: 'Sonra', style: 'cancel' },
-          { text: 'Güncelle', onPress: () => { void openUpdate(result); } },
+        Alert.alert(t('settings.updateAvailableTitle'), formatUpdateMessage(result), [
+          { text: t('common.later'), style: 'cancel' },
+          { text: t('common.update'), onPress: () => { void openUpdate(result); } },
         ]);
       } else if (result.status === 'latest') {
-        Alert.alert('Güncel', `En son sürümü kullanıyorsunuz (${result.current}).`);
+        Alert.alert(t('settings.upToDateTitle'), t('settings.upToDateBody', { version: result.current }));
       } else {
-        Alert.alert('Denetlenemedi', result.message);
+        Alert.alert(t('settings.checkFailTitle'), result.message);
       }
     } finally {
       setUpdateBusy(false);
@@ -103,7 +115,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setLockBusy(true);
     try {
       const err = await onToggleAppLock(next);
-      if (err) Alert.alert(next ? 'Kilit açılamadı' : 'Kilit kapatılamadı', err);
+      if (err) Alert.alert(next ? t('settings.lockOnFail') : t('settings.lockOffFail'), err);
     } finally {
       setLockBusy(false);
     }
@@ -111,20 +123,20 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const handleClearCache = () => {
     Alert.alert(
-      'Önbelleği temizle',
-      'Uygulamanın içe aktardığı belge kopyaları ve arşivden çıkarılan geçici dosyalar silinir. Kopyası silinen dosyalar "Son dosyalar" listesinden de çıkar; favoriler korunur. Orijinal dosyalarınıza dokunulmaz.',
+      t('settings.clearCache'),
+      t('settings.clearCacheConfirm'),
       [
-        { text: 'İptal', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Temizle',
+          text: t('common.clear'),
           style: 'destructive',
           onPress: async () => {
             setStorageBusy(true);
             try {
               await FileService.clearManagedCache({ keepFavorites: true });
-              Alert.alert('Tamamlandı', 'Önbellek temizlendi. Favoriler korundu.');
+              Alert.alert(t('common.done'), t('settings.cacheCleared'));
             } catch {
-              Alert.alert('Hata', 'Önbellek temizlenemedi. Lütfen tekrar deneyin.');
+              Alert.alert(t('common.error'), t('settings.cacheClearFail'));
             } finally {
               setStorageBusy(false);
             }
@@ -138,9 +150,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setStorageBusy(true);
     try {
       const removed = await FileService.clearRecentFiles({ keepFavorites });
-      Alert.alert('Tamamlandı', removed > 0 ? `${removed} kayıt silindi.` : 'Silinecek kayıt yoktu.');
+      Alert.alert(t('common.done'), removed > 0 ? t('settings.historyRemoved', { count: removed }) : t('settings.historyNothing'));
     } catch {
-      Alert.alert('Hata', 'Geçmiş silinemedi. Lütfen tekrar deneyin.');
+      Alert.alert(t('common.error'), t('settings.historyClearFail'));
     } finally {
       setStorageBusy(false);
     }
@@ -148,12 +160,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const handleClearHistory = () => {
     Alert.alert(
-      'Geçmişi sil',
-      '"Son dosyalar" listesi ve bu kayıtların uygulama içindeki kopyaları silinir. Orijinal dosyalarınıza dokunulmaz.',
+      t('settings.clearHistory'),
+      t('settings.clearHistoryConfirm'),
       [
-        { text: 'İptal', style: 'cancel' },
-        { text: 'Favoriler hariç sil', style: 'destructive', onPress: () => void runClearHistory(true) },
-        { text: 'Favoriler dahil sil', style: 'destructive', onPress: () => void runClearHistory(false) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('settings.deleteExceptFavs'), style: 'destructive', onPress: () => void runClearHistory(true) },
+        { text: t('settings.deleteInclFavs'), style: 'destructive', onPress: () => void runClearHistory(false) },
       ]
     );
   };
@@ -164,18 +176,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   return (
     <View style={[styles.container, { backgroundColor: currentColors.background }]}>
       <View style={[styles.header, { backgroundColor: currentColors.surface, borderBottomColor: currentColors.border }]}>
-        <Text style={[styles.headerTitle, { color: currentColors.text }]} accessibilityRole="header">Ayarlar</Text>
-        <Text style={[styles.headerSub, { color: currentColors.textSecondary }]}>Görünüm, güvenlik ve depolama</Text>
+        <Text style={[styles.headerTitle, { color: currentColors.text }]} accessibilityRole="header">{t('common.settings')}</Text>
+        <Text style={[styles.headerSub, { color: currentColors.textSecondary }]}>{t('settings.headerSub')}</Text>
       </View>
 
       <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.sectionTitle, { color: currentColors.primary }]}>UYGULAMA GÖRÜNÜMÜ</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary }]}>{t('settings.sectionAppearance')}</Text>
         <View style={styles.themeGrid}>
-          {THEME_CARDS.map(t => {
-            const isSelected = themePreference === t.id;
+          {buildThemeCards().map(tc => {
+            const isSelected = themePreference === tc.id;
             return (
               <TouchableOpacity
-                key={t.id}
+                key={tc.id}
                 style={[
                   styles.themeCard,
                   {
@@ -183,29 +195,51 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                     borderColor: isSelected ? currentColors.primary : currentColors.cardBorder,
                   },
                 ]}
-                onPress={() => onSelectThemePreference(t.id)}
+                onPress={() => onSelectThemePreference(tc.id)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${t.name} teması. ${t.desc}`}
+                accessibilityLabel={t('settings.themeA11y', { name: tc.name, desc: tc.desc })}
               >
                 <View style={styles.themeCardTop}>
                   <Ionicons
-                    name={t.icon as React.ComponentProps<typeof Ionicons>['name']}
+                    name={tc.icon as React.ComponentProps<typeof Ionicons>['name']}
                     size={20}
                     color={isSelected ? currentColors.primary : currentColors.textSecondary}
                   />
                   {isSelected && <Ionicons name="checkmark-circle" size={18} color={currentColors.primary} />}
                 </View>
                 <Text style={[styles.themeCardName, { color: isSelected ? currentColors.primary : currentColors.text }]}>
-                  {t.name}
+                  {tc.name}
                 </Text>
-                <Text style={[styles.themeCardDesc, { color: currentColors.textSecondary }]}>{t.desc}</Text>
+                <Text style={[styles.themeCardDesc, { color: currentColors.textSecondary }]}>{tc.desc}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>VARSAYILAN KOD TEMASI</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionLanguage')}</Text>
+        <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
+          {LANGUAGE_CHOICES().map((opt, idx) => {
+            const isSelected = languagePref === opt.id;
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                style={[styles.codeThemeRow, idx > 0 && { borderTopWidth: 1, borderTopColor: currentColors.border }]}
+                onPress={() => onSelectLanguage(opt.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={opt.label}
+              >
+                <View style={styles.codeThemeLeft}>
+                  <Ionicons name={isSelected ? 'radio-button-on' : 'radio-button-off'} size={20} color={isSelected ? currentColors.primary : currentColors.textMuted} />
+                  <Text style={[styles.codeThemeName, { color: isSelected ? currentColors.primary : currentColors.text }]}>{opt.label}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionCodeTheme')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
           {CODE_THEME_ENTRIES.map(({ key, def }, idx) => {
             const isSelected = codeTheme === key;
@@ -216,7 +250,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 onPress={() => onSelectCodeTheme(key)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`Kod teması: ${def.name}`}
+                accessibilityLabel={t('settings.codeThemeA11y', { name: def.name })}
               >
                 <View style={styles.codeThemeLeft}>
                   <View style={[styles.colorDot, { backgroundColor: def.colors.keyword || currentColors.primary }]} />
@@ -230,17 +264,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           })}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>GÜVENLİK</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionSecurity')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <Ionicons name="lock-closed-outline" size={20} color={currentColors.primary} />
               <View style={styles.infoTextWrap}>
-                <Text style={[styles.infoTitle, { color: currentColors.text }]}>Uygulama kilidi</Text>
+                <Text style={[styles.infoTitle, { color: currentColors.text }]}>{t('settings.appLock')}</Text>
                 <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>
                   {lockInfo
-                    ? `${lockInfo.description} Uygulama açılırken ve 30 saniyeden uzun arka planda kalınca sorulur.`
-                    : 'Cihaz desteği denetleniyor...'}
+                    ? t('settings.appLockDesc', { description: lockInfo.description })
+                    : t('settings.lockChecking')}
                 </Text>
               </View>
             </View>
@@ -251,17 +285,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               trackColor={{ false: currentColors.border, true: currentColors.primary }}
               thumbColor="#FFFFFF"
               accessibilityRole="switch"
-              accessibilityLabel="Uygulama kilidi"
+              accessibilityLabel={t('settings.appLock')}
               accessibilityState={{ checked: appLockEnabled, disabled: lockSwitchDisabled }}
             />
           </View>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>PDF MOTORU</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionPdf')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
           {([
-            { id: 'advanced' as PdfEngine, title: 'Gelişmiş (arama var)', sub: 'pdf.js ile açılır: belgede arama, sayfa içinde işaretleme, metin seçme. Metin içeren PDF dosyalarında çalışır (taranmış resimlerde arama olmaz). Çok büyük dosyalar otomatik olarak hızlı motorla açılır.' },
-            { id: 'fast' as PdfEngine, title: 'Hızlı (yerel)', sub: 'Yerel motor: büyük dosyalarda daha akıcı, arama yok.' },
+            { id: 'advanced' as PdfEngine, title: t('settings.pdfAdvancedTitle'), sub: t('settings.pdfAdvancedSub') },
+            { id: 'fast' as PdfEngine, title: t('settings.pdfFastTitle'), sub: t('settings.pdfFastSub') },
           ]).map((opt, i) => {
             const selected = pdfEngine === opt.id;
             return (
@@ -285,15 +319,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           })}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>DOSYA ERİŞİMİ</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionFiles')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <MaterialCommunityIcons name="folder-open-outline" size={20} color={currentColors.primary} />
               <View style={styles.infoTextWrap}>
-                <Text style={[styles.infoTitle, { color: currentColors.text }]}>Dosya seçici</Text>
+                <Text style={[styles.infoTitle, { color: currentColors.text }]}>{t('settings.filePicker')}</Text>
                 <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>
-                  Dosyalar sistemin dosya seçicisiyle açılır; uygulama yalnızca seçtiğiniz dosyaya erişir ve bir kopyasını uygulama içinde tutar.
+                  {t('settings.filePickerDesc')}
                 </Text>
               </View>
             </View>
@@ -302,16 +336,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <View style={styles.infoLeft}>
               <MaterialCommunityIcons name="open-in-app" size={20} color={currentColors.primary} />
               <View style={styles.infoTextWrap}>
-                <Text style={[styles.infoTitle, { color: currentColors.text }]}>"Birlikte aç"</Text>
+                <Text style={[styles.infoTitle, { color: currentColors.text }]}>{t('settings.openWith')}</Text>
                 <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>
-                  Dosya yöneticisi veya başka bir uygulamadaki "Birlikte aç / Paylaş" menüsünden T-Desk seçilebilir (desteklenen türler cihaza göre değişebilir).
+                  {t('settings.openWithDesc')}
                 </Text>
               </View>
             </View>
           </View>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>DEPOLAMA & BAKIM</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionStorage')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
           <TouchableOpacity
             style={styles.actionRow}
@@ -319,14 +353,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             disabled={storageBusy}
             accessibilityRole="button"
             accessibilityState={{ disabled: storageBusy }}
-            accessibilityLabel="Önbelleği temizle. İçe aktarılan belge kopyalarını siler, favoriler korunur."
+            accessibilityLabel={t('settings.clearCacheA11y')}
           >
             <View style={styles.infoLeft}>
               <Ionicons name="trash-bin-outline" size={20} color={currentColors.danger} />
               <View style={styles.infoTextWrap}>
-                <Text style={[styles.infoTitle, { color: currentColors.text }]}>Önbelleği temizle</Text>
+                <Text style={[styles.infoTitle, { color: currentColors.text }]}>{t('settings.clearCache')}</Text>
                 <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>
-                  Uygulama içindeki belge kopyalarını siler (favoriler korunur)
+                  {t('settings.clearCacheHint')}
                 </Text>
               </View>
             </View>
@@ -338,14 +372,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             disabled={storageBusy}
             accessibilityRole="button"
             accessibilityState={{ disabled: storageBusy }}
-            accessibilityLabel="Geçmişi sil. Son dosyalar listesini temizler."
+            accessibilityLabel={t('settings.clearHistoryA11y')}
           >
             <View style={styles.infoLeft}>
               <Ionicons name="time-outline" size={20} color={currentColors.danger} />
               <View style={styles.infoTextWrap}>
-                <Text style={[styles.infoTitle, { color: currentColors.text }]}>Geçmişi sil</Text>
+                <Text style={[styles.infoTitle, { color: currentColors.text }]}>{t('settings.clearHistory')}</Text>
                 <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>
-                  "Son dosyalar" listesini ve kayıtlı kopyalarını temizler
+                  {t('settings.clearHistoryHint')}
                 </Text>
               </View>
             </View>
@@ -353,7 +387,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>GÜNCELLEME</Text>
+        <Text style={[styles.sectionTitle, { color: currentColors.primary, marginTop: 20 }]}>{t('settings.sectionUpdate')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: currentColors.card, borderColor: currentColors.cardBorder }]}>
           <TouchableOpacity
             style={styles.actionRow}
@@ -361,16 +395,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             disabled={updateBusy}
             accessibilityRole="button"
             accessibilityState={{ disabled: updateBusy, busy: updateBusy }}
-            accessibilityLabel="Güncellemeleri denetle"
+            accessibilityLabel={t('settings.checkUpdates')}
           >
             <View style={styles.infoLeft}>
               <Ionicons name="cloud-download-outline" size={20} color={currentColors.primary} />
               <View style={styles.infoTextWrap}>
                 <Text style={[styles.infoTitle, { color: currentColors.text }]}>
-                  {updateBusy ? 'Denetleniyor…' : 'Güncellemeleri denetle'}
+                  {updateBusy ? t('settings.checking') : t('settings.checkUpdates')}
                 </Text>
                 <Text style={[styles.infoSub, { color: currentColors.textSecondary }]}>
-                  Mevcut sürüm {getAppVersion()}. Yeni sürümler GitHub yayınlarından alınır; uygulama açılışında günde bir kez de denetlenir.
+                  {t('settings.updateInfo', { version: getAppVersion() })}
                 </Text>
               </View>
             </View>
@@ -378,13 +412,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.aboutBox} accessible accessibilityLabel={`${APP_DISPLAY_NAME}, sürüm ${getAppVersion()}`}>
+        <View style={styles.aboutBox} accessible accessibilityLabel={t('settings.aboutA11y', { app: APP_DISPLAY_NAME, version: getAppVersion() })}>
           <View style={[styles.aboutLogoSquircle, { backgroundColor: currentColors.primary }]}>
             <Text style={[styles.aboutLogoText, { color: currentColors.onPrimary }]}>T/</Text>
           </View>
           <Text style={[styles.brandName, { color: currentColors.primary }]}>{APP_DISPLAY_NAME}</Text>
-          <Text style={[styles.brandVersion, { color: currentColors.textSecondary }]}>Sürüm {getAppVersion()}</Text>
-          <Text style={[styles.copyright, { color: currentColors.textSecondary }]}>© 2026 T-Desk. Tüm hakları saklıdır.</Text>
+          <Text style={[styles.brandVersion, { color: currentColors.textSecondary }]}>{t('settings.version', { version: getAppVersion() })}</Text>
+          <Text style={[styles.copyright, { color: currentColors.textSecondary }]}>{t('settings.copyright')}</Text>
         </View>
         <View style={{ height: 50 }} />
       </ScrollView>

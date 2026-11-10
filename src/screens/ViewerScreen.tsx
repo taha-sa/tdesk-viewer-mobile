@@ -27,6 +27,7 @@ import { ArchiveViewer } from '../viewers/ArchiveViewer';
 import { TextViewer } from '../viewers/TextViewer';
 import { PptxViewer } from '../viewers/PptxViewer';
 import { EpubViewer } from '../viewers/EpubViewer';
+import { t, resolveRef } from '../i18n';
 
 interface ViewerScreenProps {
   file: FileInfo;
@@ -91,9 +92,9 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
   const handleDirtyChange = useCallback((d: boolean) => { dirtyRef.current = d; }, []);
   const confirmedBack = useCallback(() => {
     if (!dirtyRef.current) { onBack(); return; }
-    Alert.alert('Kaydedilmemiş değişiklikler', 'Çıkarsanız yaptığınız değişiklikler silinecek.', [
-      { text: 'Kal', style: 'cancel' },
-      { text: 'Sil ve çık', style: 'destructive', onPress: () => { dirtyRef.current = false; onBack(); } },
+    Alert.alert(t('viewer.unsavedTitle'), t('viewer.unsavedBody'), [
+      { text: t('viewer.stay'), style: 'cancel' },
+      { text: t('viewer.discardLeave'), style: 'destructive', onPress: () => { dirtyRef.current = false; onBack(); } },
     ]);
   }, [onBack]);
   useEffect(() => {
@@ -197,10 +198,10 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
           disabled={sharing}
           accessibilityRole="button"
           accessibilityState={{ disabled: sharing }}
-          accessibilityLabel="Paylaş veya başka uygulamada aç"
+          accessibilityLabel={t('viewer.shareOpenA11y')}
         >
           <Ionicons name="share-social-outline" size={18} color={currentColors.onPrimary} />
-          <Text style={[styles.noticeBtnText, { color: currentColors.onPrimary }]}>Paylaş / Başka uygulamada aç</Text>
+          <Text style={[styles.noticeBtnText, { color: currentColors.onPrimary }]}>{t('viewer.shareOpen')}</Text>
         </TouchableOpacity>
         {extra}
       </View>
@@ -212,43 +213,43 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
       case 'too_large':
         return renderNotice(
           'file-alert-outline',
-          'Dosya çok büyük',
-          `${g.size ? FileService.formatFileSize(g.size) : 'Bu dosya'} metin olarak açılamayacak kadar büyük (en fazla ${FileService.formatFileSize(TEXT_LIMIT_BYTES)}). Bellek çökmesini önlemek için açılmadı.`
+          t('viewer.tooBigTitle'),
+          t('viewer.tooBigBody', { size: g.size ? FileService.formatFileSize(g.size) : t('viewer.thisFile'), max: FileService.formatFileSize(TEXT_LIMIT_BYTES) })
         );
       case 'binary':
         return renderNotice(
           'file-question-outline',
-          'Metin dosyası gibi görünmüyor',
-          'Bu dosyanın türü tanınmadı ve içeriği ikili veri gibi görünüyor. İsterseniz yine de metin olarak açmayı deneyebilirsiniz; okunamaz karakterler görülebilir.',
+          t('viewer.notTextTitle'),
+          t('viewer.notTextBody'),
           <TouchableOpacity
             style={[styles.noticeBtn, styles.noticeBtnOutline, { borderColor: currentColors.border }]}
             onPress={() => void loadText(initialFile, true)}
             accessibilityRole="button"
-            accessibilityLabel="Yine de metin olarak aç"
+            accessibilityLabel={t('viewer.openAsTextA11y')}
           >
             <Ionicons name="document-text-outline" size={18} color={currentColors.text} />
-            <Text style={[styles.noticeBtnText, { color: currentColors.text }]}>Metin olarak aç</Text>
+            <Text style={[styles.noticeBtnText, { color: currentColors.text }]}>{t('viewer.openAsText')}</Text>
           </TouchableOpacity>
         );
       case 'not_found':
         return renderNotice(
           'file-remove-outline',
-          'Dosya bulunamadı',
-          'Bu dosya cihazdan silinmiş veya taşınmış olabilir.'
+          t('common.fileNotFound'),
+          t('viewer.missingBody')
         );
       default:
         return renderNotice(
           'file-alert-outline',
-          'Dosya okunamadı',
-          'Dosya okunurken bir sorun oluştu; okuma izni kaldırılmış veya dosya bozuk olabilir.',
+          t('viewer.readFailTitle'),
+          t('viewer.readFailBody'),
           <TouchableOpacity
             style={[styles.noticeBtn, styles.noticeBtnOutline, { borderColor: currentColors.border }]}
             onPress={() => void loadText(initialFile, false)}
             accessibilityRole="button"
-            accessibilityLabel="Yeniden dene"
+            accessibilityLabel={t('common.retry')}
           >
             <Ionicons name="refresh" size={18} color={currentColors.text} />
-            <Text style={[styles.noticeBtnText, { color: currentColors.text }]}>Yeniden dene</Text>
+            <Text style={[styles.noticeBtnText, { color: currentColors.text }]}>{t('common.retry')}</Text>
           </TouchableOpacity>
         );
     }
@@ -259,7 +260,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
       return (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={currentColors.primary} />
-          <Text style={{ color: currentColors.textMuted, marginTop: 12 }}>Dosya okunuyor...</Text>
+          <Text style={{ color: currentColors.textMuted, marginTop: 12 }}>{t('viewer.reading')}</Text>
         </View>
       );
     }
@@ -307,8 +308,8 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
       case 'unsupported':
         return renderNotice(
           'file-alert-outline',
-          'Bu dosya biçimi desteklenmiyor',
-          file.unsupportedReason || 'Bu biçim uygulama içinde görüntülenemiyor. Dosyayı paylaşarak başka bir uygulamada açabilirsiniz.'
+          t('viewer.unsupportedTitle'),
+          resolveRef(file.unsupportedReason) || t('viewer.unsupportedBody')
         );
       case 'text':
       default:
@@ -329,7 +330,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
     setBridgeInstalled(installed);
     if (!installed) { setBridgeInvite('send'); return; }
     const err = await sendToPc(f);
-    showNotice(err ?? "T-Bridge'e iletildi; aktarım sonucunu T-Bridge'de görürsünüz.");
+    showNotice(err ?? t('viewer.sentToBridge'));
   }, [showNotice]);
 
   const startPresent = useCallback(async (f: FileInfo) => {
@@ -360,7 +361,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
           onPress={confirmedBack}
           hitSlop={HIT_SLOP}
           accessibilityRole="button"
-          accessibilityLabel={fromArchive ? 'Arşive dön' : 'Geri'}
+          accessibilityLabel={fromArchive ? t('viewer.backToArchive') : t('common.backShort')}
         >
           <Ionicons name="arrow-back" size={24} color={currentColors.text} />
         </TouchableOpacity>
@@ -383,8 +384,8 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
             onPress={() => { void handleSendToPc(currentFile); }}
             disabled={!canSendToPc(currentFile) || gate.kind !== 'ready'}
             accessibilityRole="button"
-            accessibilityLabel="Bilgisayara gönder"
-            accessibilityHint={!bridgeInstalled ? "T-Bridge'i edinme seçeneklerini açar" : undefined}
+            accessibilityLabel={t('bridge.sendTitle')}
+            accessibilityHint={!bridgeInstalled ? t('viewer.getBridgeHint') : undefined}
             accessibilityState={{ disabled: !canSendToPc(currentFile) || gate.kind !== 'ready' }}
           >
             <Ionicons name="paper-plane-outline" size={21} color={currentColors.primary} />
@@ -396,7 +397,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
               onPress={() => setSheetOpen(true)}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"
-              accessibilityLabel="Bilgisayar eylemleri"
+              accessibilityLabel={t('viewer.pcActionsA11y')}
             >
               <Ionicons name="desktop-outline" size={20} color={currentColors.text} />
             </TouchableOpacity>
@@ -408,7 +409,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
             hitSlop={HIT_SLOP}
             accessibilityRole="button"
             accessibilityState={{ disabled: sharing }}
-            accessibilityLabel="Paylaş"
+            accessibilityLabel={t('common.share')}
           >
             <Ionicons name="share-social-outline" size={20} color={currentColors.text} />
           </TouchableOpacity>
@@ -418,7 +419,7 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
             onPress={() => setShowDetailsModal(true)}
             hitSlop={HIT_SLOP}
             accessibilityRole="button"
-            accessibilityLabel="Dosya bilgileri"
+            accessibilityLabel={t('viewer.detailsA11y')}
           >
             <Ionicons name="information-circle-outline" size={21} color={currentColors.text} />
           </TouchableOpacity>

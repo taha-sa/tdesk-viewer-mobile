@@ -1,5 +1,6 @@
 // PDF birleştirme (pdf-lib). Saf bayt işler: dosya okuma/yazma ve base64 dönüşümü çağıranın işidir.
 import { PDFDocument } from 'pdf-lib';
+import { t } from '../i18n';
 
 export type PdfMergeFailure = 'encrypted' | 'invalid' | 'empty';
 
@@ -22,7 +23,7 @@ export async function mergePdfBytes(
   inputs: readonly Uint8Array[],
   onProgress?: (done: number, total: number) => void
 ): Promise<{ bytes: Uint8Array; pageCount: number }> {
-  if (inputs.length < 2) throw new PdfMergeError(0, 'empty', 'Birleştirmek için en az iki PDF gerekir.');
+  if (inputs.length < 2) throw new PdfMergeError(0, 'empty', t('pdfMerge.needTwo'));
   const out = await PDFDocument.create();
   let pageCount = 0;
   for (let i = 0; i < inputs.length; i++) {
@@ -31,11 +32,11 @@ export async function mergePdfBytes(
       src = await PDFDocument.load(inputs[i]);
     } catch (e) {
       const msg = e instanceof Error ? `${e.name} ${e.message}` : String(e);
-      if (/encrypt/i.test(msg)) throw new PdfMergeError(i, 'encrypted', 'Şifreli PDF birleştirilemez.');
-      throw new PdfMergeError(i, 'invalid', 'PDF okunamadı veya bozuk.');
+      if (/encrypt/i.test(msg)) throw new PdfMergeError(i, 'encrypted', t('pdfMerge.encrypted'));
+      throw new PdfMergeError(i, 'invalid', t('pdfMerge.invalid'));
     }
     const pages = await out.copyPages(src, src.getPageIndices());
-    if (pages.length === 0) throw new PdfMergeError(i, 'empty', 'PDF hiç sayfa içermiyor.');
+    if (pages.length === 0) throw new PdfMergeError(i, 'empty', t('pdfMerge.noPages'));
     for (const p of pages) out.addPage(p);
     pageCount += pages.length;
     onProgress?.(i + 1, inputs.length);

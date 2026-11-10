@@ -5,6 +5,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { FileInfo, FileType } from '../types';
+import { localizeDecimal, t, makeRef } from '../i18n';
 
 // ---------------------------------------------------------------------------
 // Sabitler
@@ -65,46 +66,46 @@ const NAME_CATEGORY: Record<string, FileType> = {
 };
 
 const UNSUPPORTED_REASON: Record<string, string> = {
-  mobi: 'MOBI (Kindle) biçimi desteklenmiyor. Kitabı EPUB biçimine dönüştürüp açabilirsiniz.',
-  azw: 'AZW (Kindle) biçimi desteklenmiyor. Kitabı EPUB biçimine dönüştürüp açabilirsiniz.',
-  azw3: 'AZW3 (Kindle) biçimi desteklenmiyor. Kitabı EPUB biçimine dönüştürüp açabilirsiniz.',
-  kfx: 'KFX (Kindle) biçimi desteklenmiyor. Kitabı EPUB biçimine dönüştürüp açabilirsiniz.',
-  prc: 'PRC (Kindle) biçimi desteklenmiyor. Kitabı EPUB biçimine dönüştürüp açabilirsiniz.',
-  odt: 'OpenDocument metin (ODT) desteklenmiyor. DOCX veya PDF olarak dışa aktarıp açabilirsiniz.',
-  ott: 'OpenDocument metin şablonu desteklenmiyor. DOCX veya PDF olarak dışa aktarıp açabilirsiniz.',
-  odp: 'OpenDocument sunum (ODP) desteklenmiyor. PPTX veya PDF olarak dışa aktarıp açabilirsiniz.',
-  doc: 'Eski Word biçimi (DOC) desteklenmiyor. DOCX veya PDF olarak kaydedip açabilirsiniz.',
-  rtf: 'RTF biçimi desteklenmiyor. DOCX veya PDF olarak kaydedip açabilirsiniz.',
-  ppt: 'Eski PowerPoint biçimi (PPT) desteklenmiyor. PPTX veya PDF olarak kaydedip açabilirsiniz.',
-  pps: 'Eski PowerPoint biçimi (PPS) desteklenmiyor. PPTX veya PDF olarak kaydedip açabilirsiniz.',
-  heic: 'HEIC görsel biçimi desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.',
-  heif: 'HEIF görsel biçimi desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.',
-  avif: 'AVIF görsel biçimi desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.',
-  tif: 'TIFF görsel biçimi desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.',
-  tiff: 'TIFF görsel biçimi desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.',
-  jxl: 'JPEG XL görsel biçimi desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.',
-  rar: 'RAR arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  '7z': '7z arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  tar: 'TAR arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  gz: 'GZ arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  tgz: 'TGZ arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  bz2: 'BZ2 arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  xz: 'XZ arşivleri desteklenmiyor; yalnızca ZIP arşivleri açılır.',
-  mp3: 'Ses dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  wav: 'Ses dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  m4a: 'Ses dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  aac: 'Ses dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  ogg: 'Ses dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  flac: 'Ses dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  mp4: 'Video dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  mkv: 'Video dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  avi: 'Video dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  mov: 'Video dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  webm: 'Video dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
-  '3gp': 'Video dosyaları için oynatıcı yok. Başka bir uygulamada açabilirsiniz.',
+  mobi: makeRef('unsupported.kindle', { fmt: 'MOBI' }),
+  azw: makeRef('unsupported.kindle', { fmt: 'AZW' }),
+  azw3: makeRef('unsupported.kindle', { fmt: 'AZW3' }),
+  kfx: makeRef('unsupported.kindle', { fmt: 'KFX' }),
+  prc: makeRef('unsupported.kindle', { fmt: 'PRC' }),
+  odt: makeRef('unsupported.odt'),
+  ott: makeRef('unsupported.ott'),
+  odp: makeRef('unsupported.odp'),
+  doc: makeRef('unsupported.doc'),
+  rtf: makeRef('unsupported.rtf'),
+  ppt: makeRef('unsupported.ppt', { fmt: 'PPT' }),
+  pps: makeRef('unsupported.ppt', { fmt: 'PPS' }),
+  heic: makeRef('unsupported.image', { fmt: 'HEIC' }),
+  heif: makeRef('unsupported.image', { fmt: 'HEIF' }),
+  avif: makeRef('unsupported.image', { fmt: 'AVIF' }),
+  tif: makeRef('unsupported.image', { fmt: 'TIFF' }),
+  tiff: makeRef('unsupported.image', { fmt: 'TIFF' }),
+  jxl: makeRef('unsupported.image', { fmt: 'JPEG XL' }),
+  rar: makeRef('unsupported.archive', { fmt: 'RAR' }),
+  '7z': makeRef('unsupported.archive', { fmt: '7z' }),
+  tar: makeRef('unsupported.archive', { fmt: 'TAR' }),
+  gz: makeRef('unsupported.archive', { fmt: 'GZ' }),
+  tgz: makeRef('unsupported.archive', { fmt: 'TGZ' }),
+  bz2: makeRef('unsupported.archive', { fmt: 'BZ2' }),
+  xz: makeRef('unsupported.archive', { fmt: 'XZ' }),
+  mp3: makeRef('unsupported.audio'),
+  wav: makeRef('unsupported.audio'),
+  m4a: makeRef('unsupported.audio'),
+  aac: makeRef('unsupported.audio'),
+  ogg: makeRef('unsupported.audio'),
+  flac: makeRef('unsupported.audio'),
+  mp4: makeRef('unsupported.video'),
+  mkv: makeRef('unsupported.video'),
+  avi: makeRef('unsupported.video'),
+  mov: makeRef('unsupported.video'),
+  webm: makeRef('unsupported.video'),
+  '3gp': makeRef('unsupported.video'),
 };
 
-const GENERIC_UNSUPPORTED_REASON = 'Bu dosya türü desteklenmiyor. Başka bir uygulamada açmayı deneyebilirsiniz.';
+const GENERIC_UNSUPPORTED_REASON = makeRef('unsupported.generic');
 
 const EXTENSION_CATEGORY: Record<string, FileType> = {};
 const registerExts = (category: FileType, exts: string[]) => {
@@ -181,7 +182,7 @@ function categoryFromMime(mimeRaw?: string | null): { category: FileType; reason
   if (mime === 'application/pdf') return { category: 'pdf' };
   if (mime === 'image/svg+xml') return { category: 'image' };
   if (/^image\/(heic|heif|avif|tiff|jxl)/.test(mime)) {
-    return { category: 'unsupported', reason: 'Bu görsel biçimi (HEIC/AVIF/TIFF) desteklenmiyor. Görseli JPEG veya PNG olarak dışa aktarın.' };
+    return { category: 'unsupported', reason: makeRef('unsupported.imageMime') };
   }
   if (mime.startsWith('image/')) return { category: 'image' };
   if (mime === 'text/markdown' || mime === 'text/x-markdown') return { category: 'markdown' };
@@ -201,7 +202,7 @@ function categoryFromMime(mimeRaw?: string | null): { category: FileType; reason
   if (mime.includes('mobipocket') || mime.includes('kindle')) return { category: 'unsupported', reason: UNSUPPORTED_REASON.mobi };
   if (mime === 'application/zip' || mime === 'application/x-zip-compressed') return { category: 'archive' };
   if (/(rar|7z|x-tar|gzip|x-bzip|x-xz|compressed)/.test(mime)) {
-    return { category: 'unsupported', reason: 'Bu arşiv biçimi desteklenmiyor; yalnızca ZIP arşivleri açılır.' };
+    return { category: 'unsupported', reason: makeRef('unsupported.archiveMime') };
   }
   if (mime.startsWith('audio/')) return { category: 'unsupported', reason: UNSUPPORTED_REASON.mp3 };
   if (mime.startsWith('video/')) return { category: 'unsupported', reason: UNSUPPORTED_REASON.mp4 };
@@ -259,7 +260,7 @@ export function formatFileSize(bytes: number): string {
     i++;
     rounded = Number(value.toFixed(1));
   }
-  return `${String(rounded).replace('.', ',')} ${units[i]}`;
+  return `${localizeDecimal(String(rounded))}\u00A0${units[i]}`;
 }
 
 /** Yalnızca file:// ve content:// kabul edilir (exp://, http(s)://, özel şemalar reddedilir). */
@@ -405,7 +406,7 @@ export function detectMagic(b: ArrayLike<number>): MagicInfo | null {
     return { kind: 'zip', category: 'archive', extension: 'zip' };
   }
   if (startsWith(b, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) {
-    return { kind: 'ole', category: 'unsupported', extension: '', reason: 'Eski Office biçimi (DOC/XLS/PPT) türü belirlenemedi; desteklenmiyor.' };
+    return { kind: 'ole', category: 'unsupported', extension: '', reason: makeRef('unsupported.ole') };
   }
   if (startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return { kind: 'image', category: 'image', extension: 'png' };
   if (startsWith(b, [0xff, 0xd8, 0xff])) return { kind: 'image', category: 'image', extension: 'jpg' };
@@ -528,7 +529,7 @@ export function normalizeRecord(raw: unknown): FileInfo | null {
   if (typeof raw.originalName === 'string') rec.originalName = raw.originalName;
   if (typeof raw.unsupportedReason === 'string') rec.unsupportedReason = raw.unsupportedReason;
   // eski kayıtlardaki ASCII-katlanmış metni düzelt
-  if (rec.description === 'Harici uygulamadan T-Desk ile acildi') rec.description = 'Harici uygulamadan T-Desk ile açıldı';
+  if (rec.description === 'Harici uygulamadan T-Desk ile acildi' || rec.description === 'Harici uygulamadan T-Desk ile açıldı') rec.description = makeRef('file.fromExternal');
   return rec;
 }
 
@@ -828,7 +829,7 @@ export class FileService {
     const keepFavorites = options.keepFavorites !== false;
     await this.enqueue(async () => {
       const cacheDir = FileSystem.cacheDirectory;
-      if (!cacheDir) throw new Error('Uygulama önbellek dizinine erişilemiyor.');
+      if (!cacheDir) throw new Error(t('io.cacheDirFail'));
       const list = await this.readRecents();
       const protectedUris = new Set(keepFavorites ? list.filter(f => f.isFavorite).map(f => f.uri) : []);
       const names = await FileSystem.readDirectoryAsync(cacheDir);
@@ -940,7 +941,7 @@ export class FileService {
     try {
       const info = await FileSystem.getInfoAsync(sourceUri);
       if (!info.exists && !isContent) {
-        Alert.alert('Dosya bulunamadı', 'Seçilen dosya artık erişilebilir değil.');
+        Alert.alert(t('common.fileNotFound'), t('file.notAccessible'));
         return null;
       }
       if (info.exists && !size && info.size) size = info.size;
@@ -1033,13 +1034,13 @@ export class FileService {
         displayName: deriveDisplayName(raw),
         prefix: 'intent_',
         copyAlways: false,
-        description: 'Harici uygulamadan T-Desk ile açıldı',
+        description: makeRef('file.fromExternal'),
         altSourceUri: decoded !== raw ? decoded : undefined,
       });
       return result;
     } catch (err) {
       logError('Gelen dosya işlenemedi.', err);
-      Alert.alert('Dosya açılamadı', 'Gelen dosya işlenirken bir sorun oluştu.');
+      Alert.alert(t('app.incomingFailTitle'), t('app.incomingFailBody'));
       return null;
     }
   }
@@ -1055,7 +1056,7 @@ export class FileService {
 
       const asset = result.assets[0];
       if (!isSupportedFileUri(asset.uri)) {
-        Alert.alert('Dosya açılamadı', 'Seçilen konum desteklenmiyor.');
+        Alert.alert(t('app.incomingFailTitle'), t('file.locationUnsupported'));
         return null;
       }
       const displayName = sanitizeDisplayName(asset.name || '') || deriveDisplayName(asset.uri);
@@ -1069,7 +1070,7 @@ export class FileService {
       });
     } catch (error) {
       logError('Dosya seçme hatası.', error);
-      Alert.alert('Dosya seçilemedi', 'Dosya seçilirken bir sorun oluştu. Lütfen tekrar deneyin.');
+      Alert.alert(t('file.pickFailTitle'), t('file.pickFailBody'));
       return null;
     }
   }
@@ -1085,19 +1086,19 @@ export class FileService {
     this.sharing = true;
     try {
       if (!(await Sharing.isAvailableAsync())) {
-        Alert.alert('Paylaşım kullanılamıyor', 'Bu cihazda paylaşım desteklenmiyor.');
+        Alert.alert(t('share.unavailableTitle'), t('share.unavailableBody'));
         return false;
       }
       const cacheDir = FileSystem.cacheDirectory;
       const ext = file.extension || getExtension(file.name);
       const mimeType = file.mimeType || guessMimeType(file.name) || (ext ? guessMimeType(ext) : undefined);
-      const dialogTitle = file.name ? `Paylaş: ${file.name}` : 'Paylaş';
+      const dialogTitle = file.name ? t('share.dialogTitle', { name: file.name }) : t('common.share');
       let uri = file.uri;
 
       // Alıcı uygulamanın "tdesk_<sayı>_..." öneki yerine gerçek dosya adını görmesi için her zaman
       // cache/share/<zaman>/<gerçek ad> altına bir kopya paylaşılır (sanal/örnek/content:// dosyalar zaten kopya ister).
       if (!cacheDir) {
-        Alert.alert('Paylaşılamadı', 'Geçici dizine erişilemiyor.');
+        Alert.alert(t('common.shareFailTitle'), t('share.tempDirFail'));
         return false;
       }
       const shareRoot = `${cacheDir}share/`;
@@ -1116,7 +1117,7 @@ export class FileService {
       } else if (!isVirtualUri(uri) && !uri.startsWith('content://')) {
         await FileSystem.copyAsync({ from: uri, to: tempPath });
       } else {
-        Alert.alert('Paylaşılamadı', 'Bu dosya tek başına paylaşılamaz.');
+        Alert.alert(t('common.shareFailTitle'), t('share.notStandalone'));
         return false;
       }
       uri = tempPath;
@@ -1124,7 +1125,7 @@ export class FileService {
       return true;
     } catch (e) {
       logError('Paylaşım hatası.', e);
-      Alert.alert('Paylaşılamadı', 'Dosya paylaşılırken bir sorun oluştu.');
+      Alert.alert(t('common.shareFailTitle'), t('share.fail'));
       return false;
     } finally {
       this.sharing = false;

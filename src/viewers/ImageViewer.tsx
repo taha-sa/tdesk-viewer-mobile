@@ -9,6 +9,7 @@ import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import { FileService } from '../services/fileService';
 import { sanitizeSvgMarkup } from '../utils/sanitizeHtml';
+import { t, resolveRef } from '../i18n';
 
 interface ImageViewerProps {
   file: FileInfo;
@@ -103,15 +104,15 @@ function parseSvgSafe(content: string): SvgParsed {
   if (!content) return { ast: null, size: null, error: '' };
   const clean = sanitizeSvgMarkup(content);
   if (!/<svg[\s>]/i.test(clean)) {
-    return { ast: null, size: null, error: 'Bu dosya geçerli bir SVG değil (<svg> öğesi bulunamadı).' };
+    return { ast: null, size: null, error: t('image.svgInvalid') };
   }
   try {
     const size = parseSvgSize(clean);
     const ast = parse(injectViewBox(clean, size));
-    if (!ast) return { ast: null, size, error: 'SVG içeriği ayrıştırılamadı.' };
+    if (!ast) return { ast: null, size, error: t('image.svgParseFail') };
     return { ast, size, error: '' };
   } catch {
-    return { ast: null, size: null, error: 'SVG dosyası bozuk (geçersiz XML) ve görüntülenemedi.' };
+    return { ast: null, size: null, error: t('image.svgCorrupt') };
   }
 }
 
@@ -155,7 +156,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
     }
     setSvgContent('');
     if (file.size > MAX_SVG_BYTES) {
-      setSvgLoadError('SVG dosyası 10 MB sınırını aşıyor.');
+      setSvgLoadError(t('image.svgTooLarge'));
       return () => {
         isMounted = false;
       };
@@ -163,11 +164,11 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
     FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.UTF8 })
       .then((content) => {
         if (!isMounted) return;
-        if (content.length > MAX_SVG_BYTES) setSvgLoadError('SVG dosyası 10 MB sınırını aşıyor.');
+        if (content.length > MAX_SVG_BYTES) setSvgLoadError(t('image.svgTooLarge'));
         else setSvgContent(content);
       })
       .catch(() => {
-        if (isMounted) setSvgLoadError('SVG dosyası okunamadı.');
+        if (isMounted) setSvgLoadError(t('image.svgReadFail'));
       });
     return () => {
       isMounted = false;
@@ -352,7 +353,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
   const hasError = isSvg ? !!svgLoadError || !!(svg && svg.error) : rasterError;
   const errorText = isSvg
     ? svgLoadError || (svg ? svg.error : '')
-    : 'Bu görsel çözümlenemedi. Biçim bu cihazda desteklenmiyor veya dosya bozuk olabilir.';
+    : t('image.decodeFail');
   const isLoading = !hasError && (isSvg ? (!svgContent && !svgLoadError) : rasterLoading);
   const atMin = zoomPct <= 100;
   const atMax = zoomPct >= MAX_SCALE * 100;
@@ -373,7 +374,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
         <Text
           style={[styles.zoomText, { color: currentColors.textSecondary }]}
           numberOfLines={1}
-          accessibilityLabel={`Yakınlaştırma yüzde ${zoomPct}, döndürme ${rotation} derece`}
+          accessibilityLabel={t('image.zoomA11y', { zoom: zoomPct, rotation })}
         >
           {zoomPct}% • {rotation}°
         </Text>
@@ -385,7 +386,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
             disabled={atMin || hasError}
             hitSlop={HIT}
             accessibilityRole="button"
-            accessibilityLabel="Uzaklaştır"
+            accessibilityLabel={t('image.zoomOut')}
             accessibilityState={{ disabled: atMin || hasError }}
           >
             <Ionicons name="remove-circle-outline" size={24} color={currentColors.text} />
@@ -397,7 +398,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
             disabled={atMax || hasError}
             hitSlop={HIT}
             accessibilityRole="button"
-            accessibilityLabel="Yakınlaştır"
+            accessibilityLabel={t('image.zoomIn')}
             accessibilityState={{ disabled: atMax || hasError }}
           >
             <Ionicons name="add-circle-outline" size={24} color={currentColors.text} />
@@ -412,7 +413,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
             disabled={(atMin && rotation === 0) || hasError}
             hitSlop={HIT}
             accessibilityRole="button"
-            accessibilityLabel="Sığdır ve sıfırla"
+            accessibilityLabel={t('image.fitReset')}
             accessibilityState={{ disabled: (atMin && rotation === 0) || hasError }}
           >
             <MaterialCommunityIcons name="fit-to-screen-outline" size={24} color={currentColors.text} />
@@ -424,7 +425,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
             disabled={hasError}
             hitSlop={HIT}
             accessibilityRole="button"
-            accessibilityLabel="90 derece sağa döndür"
+            accessibilityLabel={t('image.rotate')}
             accessibilityState={{ disabled: hasError }}
           >
             <MaterialCommunityIcons name="rotate-right" size={24} color={hasError ? currentColors.textMuted : currentColors.primary} />
@@ -435,7 +436,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
             onPress={() => setShowMetadata((v) => !v)}
             hitSlop={HIT}
             accessibilityRole="button"
-            accessibilityLabel={showMetadata ? 'Görsel bilgilerini gizle' : 'Görsel bilgilerini göster'}
+            accessibilityLabel={showMetadata ? t('image.hideInfo') : t('image.showInfo')}
             accessibilityState={{ expanded: showMetadata }}
           >
             <Ionicons
@@ -489,7 +490,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
                         setRasterError(true);
                       }}
                       accessible
-                      accessibilityLabel={`Görsel: ${file.name}`}
+                      accessibilityLabel={t('image.a11y', { name: file.name })}
                     />
                   ) : null}
                 </View>
@@ -513,10 +514,10 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
                   onPress={handleRetry}
                   hitSlop={HIT}
                   accessibilityRole="button"
-                  accessibilityLabel="Yeniden dene"
+                  accessibilityLabel={t('common.retry')}
                 >
                   <Ionicons name="refresh" size={16} color={currentColors.primary} />
-                  <Text style={[styles.retryText, { color: currentColors.primary }]}>Yeniden dene</Text>
+                  <Text style={[styles.retryText, { color: currentColors.primary }]}>{t('common.retry')}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -527,22 +528,22 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ file, appTheme = 'emer
       {/* Bilgi paneli */}
       {showMetadata ? (
         <View style={[styles.metaPanel, { backgroundColor: currentColors.card, borderTopColor: currentColors.border }]}>
-          <Text style={[styles.metaTitle, { color: currentColors.text }]}>Görsel Bilgileri</Text>
+          <Text style={[styles.metaTitle, { color: currentColors.text }]}>{t('image.infoTitle')}</Text>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: currentColors.textMuted }]}>Biçim:</Text>
-            <Text style={[styles.metaVal, { color: currentColors.primary }]}>{(ext || 'bilinmiyor').toUpperCase()}</Text>
-            <Text style={[styles.metaLabel, { color: currentColors.textMuted, marginLeft: 16 }]}>Boyut:</Text>
+            <Text style={[styles.metaLabel, { color: currentColors.textMuted }]}>{t('image.format')}</Text>
+            <Text style={[styles.metaVal, { color: currentColors.primary }]}>{(ext || t('image.unknown')).toUpperCase()}</Text>
+            <Text style={[styles.metaLabel, { color: currentColors.textMuted, marginLeft: 16 }]}>{t('image.size')}</Text>
             <Text style={[styles.metaVal, { color: currentColors.text }]}>{file.size > 0 ? FileService.formatFileSize(file.size) : '—'}</Text>
           </View>
           <View style={styles.metaRow}>
-            <Text style={[styles.metaLabel, { color: currentColors.textMuted }]}>{isSvg ? 'Çizim alanı:' : 'Çözünürlük:'}</Text>
+            <Text style={[styles.metaLabel, { color: currentColors.textMuted }]}>{isSvg ? t('image.canvas') : t('image.resolution')}</Text>
             <Text style={[styles.metaVal, { color: currentColors.text }]}>
               {resolution}
               {megapixels ? ` (${megapixels})` : ''}
             </Text>
           </View>
           <Text style={[styles.metaDesc, { color: currentColors.textSecondary }]} numberOfLines={2}>
-            {file.description || 'İki parmakla yakınlaştırın, kaydırarak gezinin, çift dokunarak büyütün.'}
+            {resolveRef(file.description) || t('image.hint')}
           </Text>
         </View>
       ) : null}

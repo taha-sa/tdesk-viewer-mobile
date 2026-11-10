@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../theme/colors';
 import { THEME_OPTIONS, getThemeName } from '../theme/themeOptions';
 import { AppThemeMode } from '../types';
+import { t } from '../i18n';
 
 interface HeaderProps {
   subtitle?: string;
@@ -16,7 +17,7 @@ interface HeaderProps {
 const HIT_SLOP = { top: 4, bottom: 4, left: 4, right: 4 };
 
 export const Header: React.FC<HeaderProps> = ({
-  subtitle = 'Evrensel Belge & Kod Görüntüleyici',
+  subtitle = t('header.subtitle'),
   theme = 'emerald',
   onSearchPress,
   onThemePress,
@@ -49,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
               activeOpacity={0.7}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"
-              accessibilityLabel="Dosyalarda ara"
+              accessibilityLabel={t('header.searchA11y')}
             >
               <Ionicons name="search" size={18} color={currentColors.text} />
             </TouchableOpacity>
@@ -62,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
               activeOpacity={0.7}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"
-              accessibilityLabel="Hakkında"
+              accessibilityLabel={t('common.about')}
             >
               <Ionicons name="information-circle-outline" size={20} color={currentColors.text} />
             </TouchableOpacity>
@@ -75,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
               activeOpacity={0.7}
               hitSlop={HIT_SLOP}
               accessibilityRole="button"
-              accessibilityLabel={`Temayı değiştir. Şu anki tema: ${themeName}`}
+              accessibilityLabel={t('header.themeA11y', { theme: themeName })}
             >
               <Ionicons name={themeIcon} size={18} color={currentColors.primary} />
             </TouchableOpacity>

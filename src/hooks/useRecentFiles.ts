@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { FileInfo } from '../types';
 import { FileService } from '../services/fileService';
+import { t } from '../i18n';
 
 export function useRecentFiles(onOpenFile: (file: FileInfo) => void) {
   const [files, setFiles] = useState<FileInfo[]>([]);
@@ -44,12 +45,12 @@ export function useRecentFiles(onOpenFile: (file: FileInfo) => void) {
     (file: FileInfo) => {
       if (file.missing) {
         Alert.alert(
-          'Dosya bulunamadı',
-          `"${file.name}" cihazda artık yok (silinmiş veya taşınmış olabilir). Favori kaydı listede duruyor; isterseniz listeden kaldırabilirsiniz.`,
+          t('common.fileNotFound'),
+          t('recent.missingBody', { name: file.name }),
           [
-            { text: 'Kapat', style: 'cancel' },
+            { text: t('common.close'), style: 'cancel' },
             {
-              text: 'Listeden Kaldır',
+              text: t('common.removeFromList'),
               style: 'destructive',
               onPress: () => {
                 void FileService.removeRecentFile(file.id).then(() => reload());

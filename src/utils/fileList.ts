@@ -1,19 +1,21 @@
 // Dosya listesi için saf (React Native'den bağımsız) yardımcılar: Türkçe duyarlı arama, sıralama, sayaçlar, tarih biçimi.
 import type { FileInfo, FileType } from '../types';
+import { t, formatDateParts } from '../i18n';
 
+/** Kategori adları dile göre okunur (getter): modül düzeyinde kopyalanırsa dil değişimini kaçırır. */
 export const CATEGORY_LABELS: Record<FileType, string> = {
-  pdf: 'PDF',
-  pptx: 'Sunum (PPTX)',
-  epub: 'E-Kitap (EPUB)',
-  code: 'Kod & Diller',
-  spreadsheet: 'Tablo / Excel',
-  markdown: 'Markdown',
-  docx: 'Word (DOCX)',
-  image: 'Görsel / SVG',
-  archive: 'Arşiv (ZIP)',
-  text: 'Metin / Log',
-  unsupported: 'Desteklenmeyen',
-  unknown: 'Diğer',
+  get pdf() { return 'PDF'; },
+  get pptx() { return t('category.pptx'); },
+  get epub() { return t('category.epub'); },
+  get code() { return t('category.code'); },
+  get spreadsheet() { return t('category.spreadsheet'); },
+  get markdown() { return 'Markdown'; },
+  get docx() { return 'Word (DOCX)'; },
+  get image() { return t('category.image'); },
+  get archive() { return t('category.archive'); },
+  get text() { return t('category.text'); },
+  get unsupported() { return t('category.unsupported'); },
+  get unknown() { return t('category.unknown'); },
 };
 
 export type SortKey = 'name' | 'date' | 'size';
@@ -111,11 +113,9 @@ export function splitMissing(files: readonly FileInfo[]): { present: FileInfo[];
 
 const pad2 = (n: number) => (n < 10 ? '0' + n : String(n));
 
-/** "05.11.2026" (Hermes'te toLocaleDateString seçeneklerine güvenmeden). */
+/** TR/DE "05.11.2026", EN "2026-11-05" (Hermes'te toLocaleDateString seçeneklerine güvenmeden). */
 export function formatShortDate(ts: number): string {
-  const d = new Date(ts);
-  if (!isFinite(d.getTime())) return '';
-  return `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}`;
+  return formatDateParts(new Date(ts));
 }
 
 /** "05.11.2026 14:07" */

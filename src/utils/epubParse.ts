@@ -1,5 +1,6 @@
 import type JSZip from 'jszip';
 import { sanitizeDocumentHtml } from './sanitizeHtml';
+import { t as tr } from '../i18n';
 
 /**
  * EPUB ayrıştırma yardımcıları (saf mantık; React Native bağımlılığı yok, Node'da test edilebilir).
@@ -246,7 +247,7 @@ export async function readEpub(zip: JSZip, isCancelled: () => boolean = () => fa
   const enc = findEntry(idx, 'META-INF/encryption.xml');
   if (enc) {
     const encXml = await enc.async('string');
-    if (isDrm(encXml)) throw new EpubError('Bu e-kitap DRM (kopya) korumalı olduğu için açılamıyor.');
+    if (isDrm(encXml)) throw new EpubError(tr('epub.drm'));
   }
 
   // 1) container.xml → OPF yolu
@@ -264,7 +265,7 @@ export async function readEpub(zip: JSZip, isCancelled: () => boolean = () => fa
     const guess = [...idx.byLower.values()].find((n) => n.toLowerCase().endsWith('.opf'));
     if (guess) { opfPath = guess; opfEntry = idx.zip.file(guess); }
   }
-  if (!opfEntry) throw new EpubError('E-kitap yapısı geçersiz (OPF dosyası bulunamadı).');
+  if (!opfEntry) throw new EpubError(tr('epub.noOpf'));
 
   const opf = parseOpf(await opfEntry.async('string'), opfPath);
   if (isCancelled()) throw new EpubError('iptal');
@@ -283,7 +284,7 @@ export async function readEpub(zip: JSZip, isCancelled: () => boolean = () => fa
     chapterByPath.set(key, chapters.length);
     chapters.push({ id, path: entry.name, title: '' });
   }
-  if (chapters.length === 0) throw new EpubError('E-kitapta okunabilir bölüm bulunamadı.');
+  if (chapters.length === 0) throw new EpubError(tr('epub.noChapters'));
 
   // 3) İçindekiler: önce EPUB3 nav, sonra NCX
   let rawToc: { title: string; path: string; fragment: string; depth: number }[] = [];
@@ -311,7 +312,7 @@ export async function readEpub(zip: JSZip, isCancelled: () => boolean = () => fa
     const entry = findEntry(idx, t.path);
     const ci = entry ? chapterByPath.get(entry.name.toLowerCase()) : undefined;
     if (ci === undefined) continue;
-    const title = t.title || `Bölüm ${ci + 1}`;
+    const title = t.title || tr('epub.chapterN', { n: ci + 1 });
     const prev = toc[toc.length - 1];
     if (prev && prev.chapterIdx === ci && prev.title === title && prev.fragment === t.fragment) continue;
     toc.push({ title, chapterIdx: ci, depth: Math.min(t.depth, 4), fragment: t.fragment });
@@ -340,7 +341,7 @@ export async function readEpub(zip: JSZip, isCancelled: () => boolean = () => fa
     }
   }
   for (let i = 0; i < chapters.length; i++) {
-    if (!chapters[i].title) chapters[i].title = `Bölüm ${i + 1}`;
+    if (!chapters[i].title) chapters[i].title = tr('epub.chapterN', { n: i + 1 });
   }
   const finalToc = toc.length > 0
     ? toc
@@ -405,9 +406,9 @@ async function imageDataUri(idx: ZipIndex, path: string, budget: { left: number 
 export async function readChapterHtml(zip: JSZip, book: EpubBook, chapterIdx: number): Promise<string> {
   const idx = buildIndex(zip);
   const chapter = book.chapters[chapterIdx];
-  if (!chapter) throw new EpubError('Bölüm bulunamadı.');
+  if (!chapter) throw new EpubError(tr('epub.chapterMissing'));
   const entry = findEntry(idx, chapter.path);
-  if (!entry) throw new EpubError('Bölüm dosyası bulunamadı.');
+  if (!entry) throw new EpubError(tr('epub.chapterFileMissing'));
   const chapterDir = dirOf(chapter.path);
 
   let html = expandSelfClosing(svgImagesToImg(extractBody(await entry.async('string'))));

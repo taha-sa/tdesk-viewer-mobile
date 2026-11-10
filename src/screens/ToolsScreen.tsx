@@ -10,6 +10,7 @@ import { Colors } from '../theme/colors';
 import { FileService } from '../services/fileService';
 import { base64ToBytes, bytesToBase64 } from '../utils/textEncoding';
 import { mergePdfBytes, PdfMergeError } from '../utils/pdfMerge';
+import { t } from '../i18n';
 
 interface ToolsScreenProps {
   appTheme: AppThemeMode;
@@ -62,7 +63,7 @@ const confirm = (title: string, message: string, okText: string): Promise<boolea
       title,
       message,
       [
-        { text: 'Vazgeç', style: 'cancel', onPress: () => resolve(false) },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
         { text: okText, onPress: () => resolve(true) },
       ],
       { cancelable: true, onDismiss: () => resolve(false) }
@@ -115,7 +116,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
     try {
       const remaining = MAX_IMAGES - selectedImages.length;
       if (remaining <= 0) {
-        Alert.alert('Sınıra ulaşıldı', `En fazla ${MAX_IMAGES} görsel eklenebilir.`);
+        Alert.alert(t('tools.limitTitle'), t('tools.limitBody', { max: MAX_IMAGES }));
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -132,26 +133,26 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
       }));
       if (mounted.current) setSelectedImages((prev) => [...prev, ...incoming]);
     } catch {
-      Alert.alert('Hata', 'Görsel seçilirken bir sorun oluştu. Galeri izni verildiğinden emin olun.');
+      Alert.alert(t('common.error'), t('tools.pickImageFail'));
     }
   };
 
   const handleCreatePdf = async () => {
     if (busy) return;
     if (selectedImages.length === 0) {
-      Alert.alert('Uyarı', "Lütfen PDF'e dönüştürülecek görselleri seçin.");
+      Alert.alert(t('common.warning'), t('tools.noImages'));
       return;
     }
     const totalBytes = selectedImages.reduce((s, i) => s + i.size, 0);
     if (totalBytes > IMAGE_MAX_BYTES) {
-      Alert.alert('Görseller çok büyük', 'Toplam boyut 80 MB sınırını aşıyor. Daha az görsel seçip PDF\'i parçalar hâlinde üretin.');
+      Alert.alert(t('tools.imagesTooBigTitle'), t('tools.imagesTooBigBody'));
       return;
     }
     if (selectedImages.length > IMAGE_WARN_COUNT || totalBytes > IMAGE_WARN_BYTES) {
       const ok = await confirm(
-        'Büyük işlem',
-        `${selectedImages.length} görsel${totalBytes > 0 ? ` (yaklaşık ${FileService.formatFileSize(totalBytes)})` : ''} işlenecek. Bu işlem bellek kullanır ve birkaç dakika sürebilir. Devam edilsin mi?`,
-        'Devam Et'
+        t('tools.bigTitle'),
+        t('tools.bigImagesBody', { count: selectedImages.length, sizeInfo: totalBytes > 0 ? t('tools.approxSize', { size: FileService.formatFileSize(totalBytes) }) : '' }),
+        t('common.continue')
       );
       if (!ok || !mounted.current) return;
     }
@@ -182,9 +183,9 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
           /* taşınamazsa üretilen özgün dosya kullanılır */
         }
       }
-      await finalizeOutput(finalUri, `Fotoğraflar ${displayStamp()}.pdf`, `${selectedImages.length} görselden oluşturuldu`);
+      await finalizeOutput(finalUri, t('tools.photosFileName', { stamp: displayStamp() }), t('tools.createdFromImages', { count: selectedImages.length }));
     } catch {
-      Alert.alert('Hata', 'PDF oluşturulurken sorun yaşandı. Daha az veya daha küçük görselle tekrar deneyin.');
+      Alert.alert(t('common.error'), t('tools.createFail'));
     } finally {
       if (mounted.current) setBusy(null);
     }
@@ -210,7 +211,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
         return [...prev, ...added].slice(0, MAX_PDFS);
       });
     } catch {
-      Alert.alert('Hata', 'PDF dosyaları seçilirken bir sorun oluştu.');
+      Alert.alert(t('common.error'), t('tools.pickPdfFail'));
     }
   };
 
@@ -227,19 +228,19 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
   const handleMergePdfs = async () => {
     if (busy) return;
     if (selectedPdfs.length < 2) {
-      Alert.alert('Uyarı', 'Birleştirmek için en az iki PDF seçin.');
+      Alert.alert(t('common.warning'), t('tools.needTwo'));
       return;
     }
     const totalBytes = selectedPdfs.reduce((s, p) => s + p.size, 0);
     if (totalBytes > PDF_MAX_BYTES) {
-      Alert.alert('Dosyalar çok büyük', 'Toplam boyut 120 MB sınırını aşıyor; telefonun belleği bu işlemi kaldıramaz. Daha az dosya seçin.');
+      Alert.alert(t('tools.filesTooBigTitle'), t('tools.filesTooBigBody'));
       return;
     }
     if (totalBytes > PDF_WARN_BYTES) {
       const ok = await confirm(
-        'Büyük işlem',
-        `Toplam yaklaşık ${FileService.formatFileSize(totalBytes)} işlenecek. Bu işlem uzun sürebilir ve bellek kullanır. Devam edilsin mi?`,
-        'Devam Et'
+        t('tools.bigTitle'),
+        t('tools.bigPdfBody', { size: FileService.formatFileSize(totalBytes) }),
+        t('common.continue')
       );
       if (!ok || !mounted.current) return;
     }
@@ -254,7 +255,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
         inputs.push(base64ToBytes(b64));
       }
       const merged = await mergePdfBytes(inputs, (done, total) => {
-        if (mounted.current) setMergeProgress(`Birleştiriliyor (${done}/${total})...`);
+        if (mounted.current) setMergeProgress(t('tools.mergingProgress', { done, total }));
       });
       const cacheDir = FileSystem.cacheDirectory;
       if (!cacheDir) throw new Error('cache');
@@ -263,21 +264,21 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
       await FileSystem.writeAsStringAsync(target, bytesToBase64(merged.bytes), { encoding: FileSystem.EncodingType.Base64 });
       await finalizeOutput(
         target,
-        `Birleşik PDF ${displayStamp()}.pdf`,
-        `${selectedPdfs.length} dosyadan ${merged.pageCount} sayfa birleştirildi`
+        t('tools.mergedFileName', { stamp: displayStamp() }),
+        t('tools.mergedDetail', { files: selectedPdfs.length, pages: merged.pageCount })
       );
     } catch (e) {
       if (e instanceof PdfMergeError) {
         const name = selectedPdfs[e.index]?.name ?? 'Dosya';
         if (e.reason === 'encrypted') {
-          Alert.alert('Şifreli PDF', `"${name}" şifreli olduğu için birleştirilemedi. Önce şifresini kaldırın veya listeden çıkarın.`);
+          Alert.alert(t('tools.encryptedTitle'), t('tools.encryptedBody', { name }));
         } else if (e.reason === 'invalid') {
-          Alert.alert('PDF okunamadı', `"${name}" bozuk veya geçerli bir PDF değil. Listeden çıkarıp tekrar deneyin.`);
+          Alert.alert(t('tools.invalidTitle'), t('tools.invalidBody', { name }));
         } else {
-          Alert.alert('Birleştirilemedi', e.message);
+          Alert.alert(t('tools.mergeFailTitle'), e.message);
         }
       } else {
-        Alert.alert('Hata', 'PDF\'ler birleştirilirken sorun yaşandı. Dosya sayısını veya boyutunu azaltıp tekrar deneyin.');
+        Alert.alert(t('common.error'), t('tools.mergeFail'));
       }
     } finally {
       if (mounted.current) {
@@ -297,10 +298,10 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
       keyboardShouldPersistTaps="handled"
     >
       <Text style={[styles.title, { color: currentColors.text }]} accessibilityRole="header">
-        Araçlar
+        {t('tabs.tools')}
       </Text>
       <Text style={[styles.subtitle, { color: currentColors.textSecondary }]}>
-        Fotoğraflardan PDF üretin, birden çok PDF dosyasını tek belgede birleştirin.
+        {t('tools.subtitle')}
       </Text>
 
       {result ? (
@@ -309,14 +310,14 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             <Ionicons name="checkmark-circle" size={22} color={currentColors.success} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.resultTitle, { color: currentColors.text }]} numberOfLines={2}>
-                PDF hazır: {result.file.name}
+                {t('tools.pdfReady', { name: result.file.name })}
               </Text>
               <Text style={[styles.resultDetail, { color: currentColors.textSecondary }]}>
                 {result.detail}
                 {result.file.size > 0 ? ` • ${FileService.formatFileSize(result.file.size)}` : ''}
               </Text>
               <Text style={[styles.resultDetail, { color: currentColors.textMuted }]}>
-                {result.listed ? 'Son dosyalar listesine de eklendi.' : 'Listeye eklenemedi; yine de paylaşabilir veya açabilirsiniz.'}
+                {result.listed ? t('tools.listed') : t('tools.notListed')}
               </Text>
             </View>
             <TouchableOpacity
@@ -324,7 +325,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
               hitSlop={HIT_SLOP}
               style={styles.iconHit}
               accessibilityRole="button"
-              accessibilityLabel="Sonuç kartını kapat"
+              accessibilityLabel={t('tools.closeResultA11y')}
             >
               <Ionicons name="close" size={20} color={currentColors.textMuted} />
             </TouchableOpacity>
@@ -336,20 +337,20 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
                 void FileService.shareFile(result.file);
               }}
               accessibilityRole="button"
-              accessibilityLabel="PDF'i paylaş veya kaydet"
+              accessibilityLabel={t('tools.shareA11y')}
             >
               <Ionicons name="share-social-outline" size={18} color={currentColors.text} />
-              <Text style={[styles.actionBtnText, { color: currentColors.text }]}>Paylaş / Kaydet</Text>
+              <Text style={[styles.actionBtnText, { color: currentColors.text }]}>{t('tools.shareSave')}</Text>
             </TouchableOpacity>
             {onOpenFile ? (
               <TouchableOpacity
                 style={[styles.actionBtn, { backgroundColor: currentColors.primary }]}
                 onPress={() => onOpenFile(result.file)}
                 accessibilityRole="button"
-                accessibilityLabel="PDF'i uygulamada aç"
+                accessibilityLabel={t('tools.openA11y')}
               >
                 <Ionicons name="eye-outline" size={18} color={currentColors.onPrimary} />
-                <Text style={[styles.actionBtnText, { color: currentColors.onPrimary }]}>Uygulamada Aç</Text>
+                <Text style={[styles.actionBtnText, { color: currentColors.onPrimary }]}>{t('tools.openInApp')}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -363,9 +364,9 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             <MaterialCommunityIcons name="image-multiple-outline" size={24} color={currentColors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.toolTitle, { color: currentColors.text }]}>Fotoğrafları PDF Yap</Text>
+            <Text style={[styles.toolTitle, { color: currentColors.text }]}>{t('tools.photosTitle')}</Text>
             <Text style={[styles.toolDesc, { color: currentColors.textSecondary }]}>
-              Galeriden fotoğraf seçip her biri bir sayfa olacak şekilde tek PDF'te toplayın (en fazla {MAX_IMAGES}). Görseller sıkıştırılarak alınır.
+              {t('tools.photosDesc', { max: MAX_IMAGES })}
             </Text>
           </View>
         </View>
@@ -375,14 +376,14 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll} contentContainerStyle={{ paddingTop: 8, paddingRight: 8 }}>
               {selectedImages.map((img, idx) => (
                 <View key={`${img.uri}-${idx}`} style={styles.imageThumbWrapper}>
-                  <Image source={{ uri: img.uri }} style={styles.imageThumb} accessibilityLabel={`Seçili görsel ${idx + 1}`} />
+                  <Image source={{ uri: img.uri }} style={styles.imageThumb} accessibilityLabel={t('tools.selectedImageA11y', { n: idx + 1 })} />
                   <TouchableOpacity
                     style={[styles.removeImgBtn, { backgroundColor: currentColors.card }]}
                     onPress={() => setSelectedImages((prev) => prev.filter((_, i) => i !== idx))}
                     disabled={!!busy}
                     hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Görsel ${idx + 1} seçimden çıkar`}
+                    accessibilityLabel={t('tools.removeImageA11y', { n: idx + 1 })}
                   >
                     <Ionicons name="close-circle" size={22} color={currentColors.danger} />
                   </TouchableOpacity>
@@ -390,15 +391,15 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
               ))}
             </ScrollView>
             <View style={styles.selectionRow}>
-              <Text style={[styles.selectionText, { color: currentColors.textSecondary }]}>{selectedImages.length} görsel seçili</Text>
+              <Text style={[styles.selectionText, { color: currentColors.textSecondary }]}>{t('tools.imagesSelected', { count: selectedImages.length })}</Text>
               <TouchableOpacity
                 onPress={() => setSelectedImages([])}
                 disabled={!!busy}
                 hitSlop={HIT_SLOP}
                 accessibilityRole="button"
-                accessibilityLabel="Seçili görselleri temizle"
+                accessibilityLabel={t('tools.clearImagesA11y')}
               >
-                <Text style={[styles.linkText, { color: currentColors.primary }]}>Temizle</Text>
+                <Text style={[styles.linkText, { color: currentColors.primary }]}>{t('common.clear')}</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -410,11 +411,11 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             onPress={handlePickImages}
             disabled={!!busy}
             accessibilityRole="button"
-            accessibilityLabel="Galeriden fotoğraf seç"
+            accessibilityLabel={t('tools.pickPhotoA11y')}
             accessibilityState={{ disabled: !!busy }}
           >
             <Ionicons name="images-outline" size={18} color={currentColors.text} />
-            <Text style={[styles.actionBtnText, { color: currentColors.text }]}>Fotoğraf Seç</Text>
+            <Text style={[styles.actionBtnText, { color: currentColors.text }]}>{t('tools.pickPhoto')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -422,7 +423,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             onPress={handleCreatePdf}
             disabled={!hasImages || !!busy}
             accessibilityRole="button"
-            accessibilityLabel="Seçili fotoğraflardan PDF üret"
+            accessibilityLabel={t('tools.createPdfA11y')}
             accessibilityState={{ disabled: !hasImages || !!busy, busy: busy === 'images' }}
           >
             {busy === 'images' ? (
@@ -431,7 +432,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
               <Ionicons name="document-text-outline" size={18} color={hasImages ? currentColors.onPrimary : currentColors.textMuted} />
             )}
             <Text style={[styles.actionBtnText, { color: hasImages ? currentColors.onPrimary : currentColors.textMuted }]}>
-              {busy === 'images' ? 'Oluşturuluyor...' : 'PDF Üret'}
+              {busy === 'images' ? t('tools.creating') : t('tools.createPdf')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -444,9 +445,9 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             <MaterialCommunityIcons name="file-pdf-box" size={26} color={currentColors.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.toolTitle, { color: currentColors.text }]}>PDF'leri Birleştir</Text>
+            <Text style={[styles.toolTitle, { color: currentColors.text }]}>{t('tools.mergeTitle')}</Text>
             <Text style={[styles.toolDesc, { color: currentColors.textSecondary }]}>
-              İki veya daha fazla PDF seçin, sırayı ayarlayın ve tek belgede birleştirin. Şifreli PDF'ler birleştirilemez.
+              {t('tools.mergeDesc')}
             </Text>
           </View>
         </View>
@@ -470,7 +471,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
                     onPress={() => movePdf(idx, -1)}
                     disabled={!!busy || idx === 0}
                     accessibilityRole="button"
-                    accessibilityLabel={`${pdf.name} dosyasını yukarı taşı`}
+                    accessibilityLabel={t('tools.moveUpA11y', { name: pdf.name })}
                     accessibilityState={{ disabled: !!busy || idx === 0 }}
                   >
                     <Ionicons name="chevron-up" size={20} color={idx === 0 ? currentColors.textMuted : currentColors.text} />
@@ -480,7 +481,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
                     onPress={() => movePdf(idx, 1)}
                     disabled={!!busy || idx === selectedPdfs.length - 1}
                     accessibilityRole="button"
-                    accessibilityLabel={`${pdf.name} dosyasını aşağı taşı`}
+                    accessibilityLabel={t('tools.moveDownA11y', { name: pdf.name })}
                     accessibilityState={{ disabled: !!busy || idx === selectedPdfs.length - 1 }}
                   >
                     <Ionicons name="chevron-down" size={20} color={idx === selectedPdfs.length - 1 ? currentColors.textMuted : currentColors.text} />
@@ -490,7 +491,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
                     onPress={() => setSelectedPdfs((prev) => prev.filter((p) => p.uri !== pdf.uri))}
                     disabled={!!busy}
                     accessibilityRole="button"
-                    accessibilityLabel={`${pdf.name} dosyasını listeden çıkar`}
+                    accessibilityLabel={t('tools.removePdfA11y', { name: pdf.name })}
                   >
                     <Ionicons name="close-circle" size={20} color={currentColors.danger} />
                   </TouchableOpacity>
@@ -499,16 +500,16 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             </View>
             <View style={styles.selectionRow}>
               <Text style={[styles.selectionText, { color: currentColors.textSecondary }]}>
-                {selectedPdfs.length} PDF seçili{selectedPdfs.length < 2 ? ' (en az 2 gerekli)' : ''}
+                {t('tools.pdfsSelected', { count: selectedPdfs.length })}{selectedPdfs.length < 2 ? t('tools.minTwo') : ''}
               </Text>
               <TouchableOpacity
                 onPress={() => setSelectedPdfs([])}
                 disabled={!!busy}
                 hitSlop={HIT_SLOP}
                 accessibilityRole="button"
-                accessibilityLabel="Seçili PDF'leri temizle"
+                accessibilityLabel={t('tools.clearPdfsA11y')}
               >
-                <Text style={[styles.linkText, { color: currentColors.primary }]}>Temizle</Text>
+                <Text style={[styles.linkText, { color: currentColors.primary }]}>{t('common.clear')}</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -520,11 +521,11 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             onPress={handlePickPdfs}
             disabled={!!busy}
             accessibilityRole="button"
-            accessibilityLabel="Birleştirmek için PDF seç"
+            accessibilityLabel={t('tools.pickPdfA11y')}
             accessibilityState={{ disabled: !!busy }}
           >
             <Ionicons name="add-circle-outline" size={18} color={currentColors.text} />
-            <Text style={[styles.actionBtnText, { color: currentColors.text }]}>PDF Seç</Text>
+            <Text style={[styles.actionBtnText, { color: currentColors.text }]}>{t('tools.pickPdf')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -532,7 +533,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
             onPress={handleMergePdfs}
             disabled={!canMerge || !!busy}
             accessibilityRole="button"
-            accessibilityLabel="Seçili PDF'leri birleştir"
+            accessibilityLabel={t('tools.mergeA11y')}
             accessibilityState={{ disabled: !canMerge || !!busy, busy: busy === 'merge' }}
           >
             {busy === 'merge' ? (
@@ -541,7 +542,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
               <Ionicons name="git-merge-outline" size={18} color={canMerge ? currentColors.onPrimary : currentColors.textMuted} />
             )}
             <Text style={[styles.actionBtnText, { color: canMerge ? currentColors.onPrimary : currentColors.textMuted }]}>
-              {busy === 'merge' ? mergeProgress || 'Birleştiriliyor...' : 'Birleştir'}
+              {busy === 'merge' ? mergeProgress || t('tools.merging') : t('tools.merge')}
             </Text>
           </TouchableOpacity>
         </View>

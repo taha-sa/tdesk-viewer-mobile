@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
+import { t } from '../i18n';
 
 interface PDFViewerProps { file: FileInfo; appTheme?: AppThemeMode; }
 
@@ -11,14 +12,14 @@ export const PDFViewer = ({ file, appTheme = 'emerald' }: PDFViewerProps) => {
     <View style={[styles.container, { backgroundColor: c.background }]}>
       {React.createElement('iframe', { title: file.name, src: file.uri, style: styles.frame, allow: 'fullscreen' })}
       <View style={[styles.bar, { backgroundColor: c.card, borderTopColor: c.border }]}>
-        <Text style={[styles.text, { color: c.textSecondary }]}>PDF tarayıcı görüntüleyicisinde açıldı.</Text>
+        <Text style={[styles.text, { color: c.textSecondary }]}>{t('pdf.webOpened')}</Text>
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: c.primary }]}
           onPress={() => { Linking.openURL(file.uri).catch(() => undefined); }}
           accessibilityRole="link"
-          accessibilityLabel="PDF'i yeni sekmede aç"
+          accessibilityLabel={t('pdf.webNewTabA11y')}
         >
-          <Text style={styles.btnText}>Yeni sekmede aç</Text>
+          <Text style={styles.btnText}>{t('pdf.webNewTab')}</Text>
         </TouchableOpacity>
       </View>
     </View>

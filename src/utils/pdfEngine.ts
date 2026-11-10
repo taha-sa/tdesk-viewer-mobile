@@ -1,6 +1,7 @@
 // PDF motoru seçimi: "advanced" = pdf.js (WebView; metin araması, sayfa içi işaretleme), "fast" = yerel motor (react-native-pdf).
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FileInfo } from '../types';
+import { t } from '../i18n';
 
 export type PdfEngine = 'advanced' | 'fast';
 const KEY = '@tdesk_pdf_engine';
@@ -29,6 +30,6 @@ export async function savePdfEngine(engine: PdfEngine): Promise<boolean> {
 /** Gelişmiş motor yalnızca yerel dosyalarda ve makul boyutta kullanılabilir (içerik parça parça WebView'a aktarılır). */
 export function canUseAdvancedEngine(file: Pick<FileInfo, 'uri' | 'size'>): { ok: boolean; reason?: string } {
   if (!file.uri.startsWith('file://')) return { ok: false, reason: 'Dosya uygulama dışında (content://) olduğu için hızlı motor kullanıldı.' };
-  if (typeof file.size === 'number' && file.size > ADVANCED_MAX_BYTES) return { ok: false, reason: 'Büyük dosya: hızlı motor kullanıldı.' };
+  if (typeof file.size === 'number' && file.size > ADVANCED_MAX_BYTES) return { ok: false, reason: t('pdfEngine.largeFile') };
   return { ok: true };
 }

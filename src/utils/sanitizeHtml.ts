@@ -1,4 +1,5 @@
 import xss, { friendlyAttrValue } from 'xss';
+import { t } from '../i18n';
 
 /**
  * Belge HTML'i (Markdown, DOCX, EPUB) için beyaz liste temelli temizleyici.
@@ -217,7 +218,7 @@ function replaceSrcLessImages(html: string): string {
   return html.replace(/<img\b([^>]*)>/g, (m, attrs: string) => {
     if (/\ssrc="/.test(` ${attrs}`)) return m;
     const alt = /\balt="([^"]*)"/.exec(attrs);
-    const label = alt && alt[1].trim() ? `[Görsel: ${alt[1].trim()}]` : '[Görsel]';
+    const label = alt && alt[1].trim() ? `[${t('docx.image')}: ${alt[1].trim()}]` : `[${t('docx.image')}]`;
     return `<span class="img-missing">${label}</span>`;
   });
 }

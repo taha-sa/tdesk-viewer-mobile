@@ -3,13 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
+import { t } from '../i18n';
 
 interface Props {
   children: React.ReactNode;
   /** Değişince hata durumu sıfırlanır (örn. başka dosya/sekme). */
   resetKey?: string;
   appTheme?: AppThemeMode;
-  /** Verilirse "Geri dön" düğmesi gösterilir (iOS'ta donanım geri tuşu yoktur). */
+  /** Verilirse t('common.back') düğmesi gösterilir (iOS'ta donanım geri tuşu yoktur). */
   onBack?: () => void;
   backLabel?: string;
   title?: string;
@@ -18,8 +19,8 @@ interface Props {
 }
 interface State { hasError: boolean; message: string; }
 
-const DEFAULT_TITLE = 'Bu ekran görüntülenemedi';
-const DEFAULT_DESCRIPTION = 'Dosya bozuk, desteklenmiyor veya cihaz belleği yetersiz olabilir.';
+const defaultTitle = () => t('errorBoundary.title');
+const defaultDescription = () => t('errorBoundary.desc');
 
 /**
  * Hem uygulama kökünde hem görüntüleyici alanında kullanılan tek hata sınırı
@@ -52,8 +53,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
     return (
       <View style={[styles.container, { backgroundColor: c.background }]} accessibilityRole="alert">
         <Ionicons name="warning-outline" size={52} color={c.warning} />
-        <Text style={[styles.title, { color: c.text }]}>{title || DEFAULT_TITLE}</Text>
-        <Text style={[styles.description, { color: c.textSecondary }]}>{description || DEFAULT_DESCRIPTION}</Text>
+        <Text style={[styles.title, { color: c.text }]}>{title || defaultTitle()}</Text>
+        <Text style={[styles.description, { color: c.textSecondary }]}>{description || defaultDescription()}</Text>
         <Text style={[styles.technical, { color: c.textMuted }]} numberOfLines={4} selectable>
           {this.state.message}
         </Text>
@@ -62,18 +63,18 @@ export class ErrorBoundary extends React.Component<Props, State> {
             style={[styles.secondary, { borderColor: c.border }]}
             onPress={this.reset}
             accessibilityRole="button"
-            accessibilityLabel="Tekrar dene"
+            accessibilityLabel={t('common.retry')}
           >
-            <Text style={[styles.secondaryText, { color: c.text }]}>Tekrar dene</Text>
+            <Text style={[styles.secondaryText, { color: c.text }]}>{t('common.retry')}</Text>
           </TouchableOpacity>
           {onBack ? (
             <TouchableOpacity
               style={[styles.primary, { backgroundColor: c.primary }]}
               onPress={onBack}
               accessibilityRole="button"
-              accessibilityLabel={backLabel || 'Geri dön'}
+              accessibilityLabel={backLabel || t('common.back')}
             >
-              <Text style={[styles.primaryText, { color: c.onPrimary }]}>{backLabel || 'Geri dön'}</Text>
+              <Text style={[styles.primaryText, { color: c.onPrimary }]}>{backLabel || t('common.back')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>

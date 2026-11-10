@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { TextInput } from 'react-native';
 import type { Token } from '../utils/highlight';
 import { findMatches, LineMatch } from '../utils/textEncoding';
+import { t } from '../i18n';
 
 export const MONO_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' }) as string;
 
@@ -166,7 +167,7 @@ export const LinesView = forwardRef<LinesViewHandle, LinesViewProps>(function Li
       showsVerticalScrollIndicator
       keyboardShouldPersistTaps="handled"
       ListEmptyComponent={
-        <Text style={[styles.empty, { color: gutterColor }]}>{props.emptyText || 'İçerik yok'}</Text>
+        <Text style={[styles.empty, { color: gutterColor }]}>{props.emptyText || t('viewers.noContent')}</Text>
       }
     />
   );
@@ -278,7 +279,7 @@ export const SearchRow: React.FC<{
     <Ionicons name="search" size={16} color={mutedColor} />
     <TextInput
       style={[styles.searchInput, { color: textColor }]}
-      placeholder="Ara..."
+      placeholder={t('viewers.searchPlaceholder')}
       placeholderTextColor={mutedColor}
       value={search.query}
       onChangeText={search.setQuery}
@@ -287,7 +288,7 @@ export const SearchRow: React.FC<{
       autoCorrect={false}
       returnKeyType="search"
       onSubmitEditing={search.next}
-      accessibilityLabel="Metin içinde ara"
+      accessibilityLabel={t('viewers.searchInTextA11y')}
     />
     {search.query.length > 0 && (
       <Text style={[styles.searchCount, { color: primaryColor }]} accessibilityLiveRegion="polite">
@@ -296,13 +297,13 @@ export const SearchRow: React.FC<{
           : `${search.index + 1}/${search.matches.length}${search.truncated ? '+' : ''}`}
       </Text>
     )}
-    <ToolButton label="Önceki eşleşme" onPress={search.prev} disabled={search.matches.length === 0}>
+    <ToolButton label={t('viewers.prevMatch')} onPress={search.prev} disabled={search.matches.length === 0}>
       <Ionicons name="chevron-up" size={20} color={textColor} />
     </ToolButton>
-    <ToolButton label="Sonraki eşleşme" onPress={search.next} disabled={search.matches.length === 0}>
+    <ToolButton label={t('viewers.nextMatch')} onPress={search.next} disabled={search.matches.length === 0}>
       <Ionicons name="chevron-down" size={20} color={textColor} />
     </ToolButton>
-    <ToolButton label="Aramayı kapat" onPress={search.close}>
+    <ToolButton label={t('viewers.closeSearch')} onPress={search.close}>
       <Ionicons name="close" size={20} color={mutedColor} />
     </ToolButton>
   </View>

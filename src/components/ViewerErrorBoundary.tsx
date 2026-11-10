@@ -1,6 +1,7 @@
 import React from 'react';
 import { AppThemeMode } from '../types';
 import { ErrorBoundary } from './ErrorBoundary';
+import { t } from '../i18n';
 
 interface Props {
   children: React.ReactNode;
@@ -13,8 +14,8 @@ export const ViewerErrorBoundary: React.FC<Props> = ({ children, appTheme, onBac
   <ErrorBoundary
     appTheme={appTheme}
     onBack={onBack}
-    title="Bu dosya görüntülenemedi"
-    description="Dosya bozuk, desteklenmiyor veya cihaz belleği yetersiz olabilir. Geri dönüp başka bir dosya deneyebilirsiniz."
+    title={t('viewerError.title')}
+    description={t('viewerError.desc')}
     logTag="T-DESK-VIEWER-ERROR"
   >
     {children}

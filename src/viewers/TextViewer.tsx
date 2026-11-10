@@ -14,6 +14,7 @@ import {
   TextReadError,
 } from '../utils/textEncoding';
 import { LinesView, LinesViewHandle, SearchRow, ToolButton, useLineSearch } from './LinesView';
+import { t } from '../i18n';
 
 interface TextViewerProps {
   file: FileInfo;
@@ -117,18 +118,18 @@ export const TextViewer: React.FC<TextViewerProps> = ({ file, appTheme = 'dark' 
   const handleCopy = async () => {
     try {
       await Clipboard.setStringAsync(text);
-      showToast('Kopyalandı');
+      showToast(t('details.copied'));
     } catch {
-      Alert.alert('Hata', 'Panoya kopyalanamadı.');
+      Alert.alert(t('common.error'), t('viewers.clipboardFail'));
     }
   };
 
   const handleShare = async () => {
     try {
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri);
-      else Alert.alert('Paylaşılamadı', 'Bu cihazda paylaşım desteklenmiyor.');
+      else Alert.alert(t('common.shareFailTitle'), t('viewers.shareUnavailable'));
     } catch {
-      Alert.alert('Hata', 'Dosya paylaşılamadı.');
+      Alert.alert(t('common.error'), t('textViewer.shareFail'));
     }
   };
 
@@ -136,7 +137,7 @@ export const TextViewer: React.FC<TextViewerProps> = ({ file, appTheme = 'dark' 
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]} accessibilityLiveRegion="polite">
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.msg, { color: colors.textSecondary }]}>Dosya okunuyor...</Text>
+        <Text style={[styles.msg, { color: colors.textSecondary }]}>{t('viewer.reading')}</Text>
       </View>
     );
   }
@@ -145,23 +146,23 @@ export const TextViewer: React.FC<TextViewerProps> = ({ file, appTheme = 'dark' 
     const canShare = !isVirtualTextUri(file.uri);
     const info =
       status.kind === 'empty'
-        ? { icon: 'document-outline' as const, title: 'Dosya boş', body: 'Bu dosyada hiç metin yok.' }
+        ? { icon: 'document-outline' as const, title: t('textViewer.emptyTitle'), body: t('textViewer.emptyBody') }
         : status.kind === 'too_large'
         ? {
             icon: 'warning-outline' as const,
-            title: 'Dosya çok büyük',
-            body: `Metin görüntüleyici en fazla 5 MB'a kadar açar${status.size ? ` (bu dosya ${formatBytes(status.size)})` : ''}. Başka bir uygulamada açmayı deneyin.`,
+            title: t('viewer.tooBigTitle'),
+            body: t('textViewer.tooLargeBody', { sizeInfo: status.size ? t('textViewer.thisFile', { size: formatBytes(status.size) }) : '' }),
           }
         : status.kind === 'binary'
         ? {
             icon: 'warning-outline' as const,
-            title: 'Metin dosyası değil',
-            body: 'Bu dosya ikili (binary) veri içeriyor; metin olarak gösterilemez.',
+            title: t('textViewer.binaryTitle'),
+            body: t('textViewer.binaryBody'),
           }
         : {
             icon: 'alert-circle-outline' as const,
-            title: 'Dosya okunamadı',
-            body: 'Dosya okunamadı. Taşınmış, silinmiş veya erişim izni kaldırılmış olabilir.',
+            title: t('viewer.readFailTitle'),
+            body: t('textViewer.readFailBody'),
           };
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
@@ -173,10 +174,10 @@ export const TextViewer: React.FC<TextViewerProps> = ({ file, appTheme = 'dark' 
             style={[styles.actionBtn, { borderColor: colors.primary }]}
             onPress={handleShare}
             accessibilityRole="button"
-            accessibilityLabel="Başka uygulamada aç veya paylaş"
+            accessibilityLabel={t('textViewer.shareOpenA11y')}
           >
             <Ionicons name="share-outline" size={18} color={colors.primary} />
-            <Text style={[styles.actionText, { color: colors.primary }]}>Paylaş / Başka uygulamada aç</Text>
+            <Text style={[styles.actionText, { color: colors.primary }]}>{t('viewer.shareOpen')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -194,26 +195,26 @@ export const TextViewer: React.FC<TextViewerProps> = ({ file, appTheme = 'dark' 
           {toast || `${lines.length} SATIR · ${status.encoding}`}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarRight}>
-          <ToolButton label="Ara" onPress={() => (search.open ? search.close() : search.setOpen(true))} selected={search.open}>
+          <ToolButton label={t('common.search')} onPress={() => (search.open ? search.close() : search.setOpen(true))} selected={search.open}>
             <Ionicons name="search" size={20} color={search.open ? colors.primary : colors.text} />
           </ToolButton>
-          <ToolButton label="Tümünü kopyala" onPress={handleCopy}>
+          <ToolButton label={t('viewers.copyAll')} onPress={handleCopy}>
             <Ionicons name="copy-outline" size={20} color={colors.text} />
           </ToolButton>
           <ToolButton
-            label={wrap ? 'Kelime kaydırmayı kapat' : 'Kelime kaydırmayı aç'}
+            label={wrap ? t('viewers.wrapOff') : t('viewers.wrapOn')}
             onPress={() => setWrap((w) => !w)}
             selected={wrap}
           >
             <MaterialCommunityIcons name="wrap" size={20} color={wrap ? colors.primary : colors.text} />
           </ToolButton>
-          <ToolButton label="Yazı boyutunu küçült" onPress={() => setFontSize((s) => Math.max(FONT_MIN, s - 1))} disabled={fontSize <= FONT_MIN}>
+          <ToolButton label={t('viewers.fontSmaller')} onPress={() => setFontSize((s) => Math.max(FONT_MIN, s - 1))} disabled={fontSize <= FONT_MIN}>
             <Text style={[styles.fontBtnText, { color: colors.text }]}>A-</Text>
           </ToolButton>
-          <Text style={[styles.fontSizeLabel, { color: colors.primary }]} accessibilityLabel={`Yazı boyutu ${fontSize}`}>
+          <Text style={[styles.fontSizeLabel, { color: colors.primary }]} accessibilityLabel={t('viewers.fontSizeA11y', { size: fontSize })}>
             {fontSize}
           </Text>
-          <ToolButton label="Yazı boyutunu büyüt" onPress={() => setFontSize((s) => Math.min(FONT_MAX, s + 1))} disabled={fontSize >= FONT_MAX}>
+          <ToolButton label={t('viewers.fontLarger')} onPress={() => setFontSize((s) => Math.min(FONT_MAX, s + 1))} disabled={fontSize >= FONT_MAX}>
             <Text style={[styles.fontBtnText, { color: colors.text }]}>A+</Text>
           </ToolButton>
         </ScrollView>

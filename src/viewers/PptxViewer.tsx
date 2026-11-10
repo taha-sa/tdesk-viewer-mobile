@@ -18,6 +18,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
+import { t } from '../i18n';
 
 interface PptxViewerProps {
   file: FileInfo;
@@ -467,7 +468,7 @@ function walkTree(children: XNode[], T: Tf, ctx: SlideCtx, out: SlideEl[], count
           : undefined;
         counter.n++;
         if (mimeForPath(rel.target)) out.push({ id: 'e' + counter.n, kind: 'image', box, imagePath: rel.target, crop });
-        else out.push({ id: 'e' + counter.n, kind: 'unsupported', box, label: 'Görsel biçimi desteklenmiyor' });
+        else out.push({ id: 'e' + counter.n, kind: 'unsupported', box, label: t('pptx.imageUnsupported') });
         break;
       }
       case 'p:graphicFrame': {
@@ -484,7 +485,7 @@ function walkTree(children: XNode[], T: Tf, ctx: SlideCtx, out: SlideEl[], count
             id: 'e' + counter.n,
             kind: 'unsupported',
             box,
-            label: uri.indexOf('chart') >= 0 ? 'Grafik (görüntülenemiyor)' : uri.indexOf('diagram') >= 0 ? 'Diyagram (görüntülenemiyor)' : 'Nesne (görüntülenemiyor)',
+            label: uri.indexOf('chart') >= 0 ? t('pptx.chartNA') : uri.indexOf('diagram') >= 0 ? t('pptx.diagramNA') : t('pptx.objectNA'),
           });
         }
         break;
@@ -772,7 +773,7 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
       <View
         style={[styles.slideCanvas, { width: canvasW, height: canvasH, backgroundColor: bg, borderColor: colors.cardBorder }]}
         accessible
-        accessibilityLabel={`Slayt ${slide.number}. ${slide.title || 'Başlıksız'}`}
+        accessibilityLabel={t('pptx.slideA11y', { n: slide.number, title: slide.title || t('pptx.untitled') })}
       >
         {slide.elements.map((el) => {
           if (el.kind === 'text') return el.box ? renderText(el, false) : null;
@@ -785,7 +786,7 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
         )}
         {slide.elements.length === 0 && (
           <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ color: '#6B7280', fontSize: 13 }}>Bu slaytta görüntülenebilir öğe yok</Text>
+            <Text style={{ color: '#6B7280', fontSize: 13 }}>{t('pptx.noElements')}</Text>
           </View>
         )}
       </View>
@@ -841,7 +842,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       if (cancelled) return;
       try {
         if (typeof file.size === 'number' && file.size > MAX_FILE_BYTES) {
-          throw new Error('Sunum çok büyük; bu cihazda güvenle açılamaz.');
+          throw new Error(t('pptx.tooLarge'));
         }
         let b64: string | undefined;
         if (!file.uri.includes('#')) { // yalnız 'zip#girdi' sanal adresleri diskten okunamaz; arşivden çıkarılan kopyalar normal dosyadır
@@ -852,14 +853,14 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           }
         }
         if (!b64) b64 = file.base64;
-        if (!b64) throw new Error('Dosya içeriği okunamadı.');
+        if (!b64) throw new Error(t('sheet.readFail'));
         if (cancelled) return;
 
         let zip: JSZip;
         try {
           zip = await JSZip.loadAsync(b64, { base64: true });
         } catch {
-          throw new Error('Sunum açılamadı. Dosya bozuk veya parola korumalı olabilir.');
+          throw new Error(t('pptx.openFail'));
         }
         b64 = undefined;
         if (cancelled) return;
@@ -873,7 +874,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
         };
 
         const presXml = await readXml('ppt/presentation.xml');
-        if (!presXml) throw new Error('Geçerli bir PPTX değil (presentation.xml yok).');
+        if (!presXml) throw new Error(t('pptx.invalid'));
         const presRels = await readXml('ppt/_rels/presentation.xml.rels');
 
         let slideW = 12192000;
@@ -886,7 +887,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
 
         const allPaths = Object.keys(zip.files);
         const paths = orderSlidePaths(presXml, presRels, allPaths).slice(0, MAX_SLIDES);
-        if (paths.length === 0) throw new Error('Sunumda slayt bulunamadı.');
+        if (paths.length === 0) throw new Error(t('pptx.noSlides'));
 
         const phCache = new Map<string, PhMap>();
         const getPh = async (path: string | undefined): Promise<PhMap> => {
@@ -963,13 +964,13 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           }
         }
         if (cancelled) return;
-        if (parsed.length === 0) throw new Error('Sunumdaki slaytlar okunamadı.');
+        if (parsed.length === 0) throw new Error(t('pptx.slidesReadFail'));
         setData({ slides: parsed, slideWpt: slideW / 12700, aspect: slideW / slideH });
         setProgress(null);
         setStatus('ready');
       } catch (e) {
         if (cancelled) return;
-        setErrorMsg(e instanceof Error ? e.message : 'Sunum açılamadı.');
+        setErrorMsg(e instanceof Error ? e.message : t('pptx.openFailShort'));
         setStatus('error');
       }
     })();
@@ -1106,7 +1107,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[styles.loadingText, { color: colors.textMuted }]}>
-          {progress ? `Slaytlar okunuyor (${progress.done}/${progress.total})...` : 'Sunum hazırlanıyor...'}
+          {progress ? t('pptx.readingSlides', { done: progress.done, total: progress.total }) : t('pptx.preparing')}
         </Text>
       </View>
     );
@@ -1115,7 +1116,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
-        <Text style={[styles.errorText, { color: colors.textSecondary, marginTop: 12 }]}>{errorMsg || 'Bu sunumda görüntülenebilir slayt bulunamadı.'}</Text>
+        <Text style={[styles.errorText, { color: colors.textSecondary, marginTop: 12 }]}>{errorMsg || t('pptx.noDisplayable')}</Text>
       </View>
     );
   }
@@ -1161,7 +1162,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           <View style={{ flex: 1 }}>
             <Text style={[styles.counterText, { color: colors.primary }]} accessibilityLiveRegion="polite">
               SLAYT {index + 1} / {slides.length}
-              {cur?.hidden ? '  ·  GİZLİ' : ''}
+              {cur?.hidden ? '  ·  ' + t('pptx.hiddenCaps') : ''}
             </Text>
             {!!cur?.title && (
               <Text style={[styles.titleText, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -1170,14 +1171,14 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
             )}
           </View>
           <View style={styles.iconGroup}>
-            {iconBtn('list-outline', 'Slayta git', () => setGotoOpen(true))}
-            {iconBtn(copied ? 'checkmark' : 'copy-outline', copied ? 'Kopyalandı' : 'Slayt metnini kopyala', copyText)}
-            {iconBtn('document-text-outline', notesOpen ? 'Konuşmacı notlarını gizle' : 'Konuşmacı notlarını göster', () => setNotesOpen((v) => !v), notesOpen)}
+            {iconBtn('list-outline', t('pptx.goTo'), () => setGotoOpen(true))}
+            {iconBtn(copied ? 'checkmark' : 'copy-outline', copied ? t('details.copied') : t('pptx.copyText'), copyText)}
+            {iconBtn('document-text-outline', notesOpen ? t('pptx.hideNotes') : t('pptx.showNotes'), () => setNotesOpen((v) => !v), notesOpen)}
           </View>
         </View>
         <View style={styles.viewToggleGroup}>
-          {segBtn('visual', 'easel-outline', 'Slayt Görünümü')}
-          {segBtn('text', 'list-outline', 'Metin Akışı')}
+          {segBtn('visual', 'easel-outline', t('pptx.visualView'))}
+          {segBtn('text', 'list-outline', t('pptx.textView'))}
         </View>
       </View>
 
@@ -1226,7 +1227,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
             <View style={[styles.textSlideCard, { backgroundColor: colors.card, borderColor: i === index ? colors.primary : colors.cardBorder }]}>
               <Text style={[styles.textCardTitle, { color: colors.primary }]}>
                 Slayt {i + 1}
-                {item.hidden ? ' · GİZLİ' : ''}
+                {item.hidden ? ' · ' + t('pptx.hiddenCaps') : ''}
               </Text>
               {!!item.title && <Text style={[styles.textCardHeading, { color: colors.text }]} selectable>{item.title}</Text>}
               <Text style={[styles.textCardBody, { color: colors.text }]} selectable>
@@ -1234,7 +1235,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
               </Text>
               {!!item.notes && (
                 <View style={[styles.notesInline, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.notesLabel, { color: colors.textMuted }]}>KONUŞMACI NOTLARI</Text>
+                  <Text style={[styles.notesLabel, { color: colors.textMuted }]}>{t('pptx.notesCaps')}</Text>
                   <Text style={[styles.textCardBody, { color: colors.textSecondary }]} selectable>
                     {item.notes}
                   </Text>
@@ -1248,10 +1249,10 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       {/* Konuşmacı notları paneli */}
       {notesOpen && (
         <View style={[styles.notesPanel, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <Text style={[styles.notesLabel, { color: colors.textMuted }]}>KONUŞMACI NOTLARI · Slayt {index + 1}</Text>
+          <Text style={[styles.notesLabel, { color: colors.textMuted }]}>{t('pptx.notesCapsSlide', { n: index + 1 })}</Text>
           <ScrollView style={{ maxHeight: 140 }} nestedScrollEnabled>
             <Text style={[styles.textCardBody, { color: cur?.notes ? colors.text : colors.textMuted }]} selectable>
-              {cur?.notes || 'Bu slaytta konuşmacı notu yok.'}
+              {cur?.notes || t('pptx.noNotes')}
             </Text>
           </ScrollView>
         </View>
@@ -1265,11 +1266,11 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           disabled={atStart}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel="Önceki slayt"
+          accessibilityLabel={t('presenter.prevSlide')}
           accessibilityState={{ disabled: atStart }}
         >
           <Ionicons name="chevron-back" size={20} color={atStart ? colors.textMuted : colors.text} />
-          <Text style={[styles.navBtnText, { color: atStart ? colors.textMuted : colors.text }]}>Önceki</Text>
+          <Text style={[styles.navBtnText, { color: atStart ? colors.textMuted : colors.text }]}>{t('common.prev')}</Text>
         </Pressable>
 
         <Pressable
@@ -1290,10 +1291,10 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           disabled={atEnd}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel="Sonraki slayt"
+          accessibilityLabel={t('presenter.nextSlide')}
           accessibilityState={{ disabled: atEnd }}
         >
-          <Text style={[styles.navBtnText, { color: atEnd ? colors.textMuted : colors.text }]}>Sonraki</Text>
+          <Text style={[styles.navBtnText, { color: atEnd ? colors.textMuted : colors.text }]}>{t('common.next')}</Text>
           <Ionicons name="chevron-forward" size={20} color={atEnd ? colors.textMuted : colors.text} />
         </Pressable>
       </View>
@@ -1304,7 +1305,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setGotoOpen(false)} accessibilityRole="button" accessibilityLabel="Kapat" />
           <View style={[styles.modalContent, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Slayta git</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('pptx.goTo')}</Text>
               <Pressable onPress={() => setGotoOpen(false)} hitSlop={10} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Pencereyi kapat">
                 <Ionicons name="close" size={24} color={colors.textMuted} />
               </Pressable>
@@ -1322,11 +1323,11 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
                     goTo(i);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={`Slayt ${i + 1}: ${item.title || 'Başlıksız'}${item.hidden ? ', gizli' : ''}`}
+                  accessibilityLabel={t('pptx.listItemA11y', { n: i + 1, title: item.title || t('pptx.untitled'), hidden: item.hidden ? t('pptx.hiddenSuffixA11y') : '' })}
                 >
                   <Text style={[styles.gotoNum, { color: colors.primary }]}>{i + 1}</Text>
                   <Text style={[styles.gotoTitle, { color: colors.text }]} numberOfLines={2}>
-                    {item.title || 'Başlıksız slayt'}
+                    {item.title || t('pptx.untitledSlide')}
                   </Text>
                   {item.hidden && <Text style={[styles.gotoBadge, { color: colors.textMuted }]}>gizli</Text>}
                 </Pressable>

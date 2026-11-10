@@ -10,6 +10,7 @@ import { Colors } from '../theme/colors';
 import { FileService } from '../services/fileService';
 import { buildPdfHtml, PDFJS_BASE_URL } from './pdfjs/buildHtml';
 import { WebSearchBar } from './WebSearchBar';
+import { t } from '../i18n';
 
 interface Props {
   file: FileInfo;
@@ -31,11 +32,11 @@ interface WebMsg {
 
 function friendlyError(name: string, message: string): string {
   switch (name) {
-    case 'InvalidPDFException': return 'Dosya geçerli bir PDF değil veya bozuk.';
-    case 'MissingPDFException': return 'PDF dosyası bulunamadı.';
-    case 'PasswordException': return 'PDF parola korumalı.';
-    case 'NoEngine': return 'PDF motoru yüklenemedi.';
-    default: return message ? `PDF açılamadı: ${message}` : 'PDF açılamadı.';
+    case 'InvalidPDFException': return t('pdf.err.invalid');
+    case 'MissingPDFException': return t('pdf.err.missing');
+    case 'PasswordException': return t('pdf.passwordProtected');
+    case 'NoEngine': return t('pdf.err.noEngine');
+    default: return message ? t('pdf.err.withMessage', { message }) : t('pdf.openFailTitle');
   }
 }
 
@@ -95,7 +96,7 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
     try {
       const info = await FileSystem.getInfoAsync(file.uri);
       const size = info.exists && typeof info.size === 'number' ? info.size : 0;
-      if (!size) throw new Error('Dosya boş veya okunamadı.');
+      if (!size) throw new Error(t('epub.emptyFile'));
       const first = waitAck();
       run(`window.__pdf.begin(${size})`);
       await first;
@@ -111,7 +112,7 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
       if (alive.current) run('window.__pdf.open("")');
     } catch (e) {
       if (!alive.current) return;
-      setErrorText(e instanceof Error && e.message ? e.message : 'Dosya okunamadı.');
+      setErrorText(e instanceof Error && e.message ? e.message : t('codeViewer.readFailShort'));
       setStatus('error');
     }
   }, [file.uri, run, waitAck]);
@@ -230,17 +231,17 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
     return (
       <View style={[styles.center, { backgroundColor: c.background }]}>
         <Ionicons name="alert-circle-outline" size={56} color={c.textMuted} />
-        <Text style={[styles.title, { color: c.text }]}>PDF açılamadı</Text>
+        <Text style={[styles.title, { color: c.text }]}>{t('pdf.openFailTitle')}</Text>
         <Text style={[styles.desc, { color: c.textMuted }]}>{errorText}</Text>
         <View style={styles.row}>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: c.primary }]} onPress={retry} accessibilityRole="button" accessibilityLabel="Yeniden dene">
+          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: c.primary }]} onPress={retry} accessibilityRole="button" accessibilityLabel={t('common.retry')}>
             <Ionicons name="refresh" size={20} color={c.onPrimary} />
-            <Text style={[styles.primaryBtnText, { color: c.onPrimary }]}>Yeniden dene</Text>
+            <Text style={[styles.primaryBtnText, { color: c.onPrimary }]}>{t('common.retry')}</Text>
           </TouchableOpacity>
           {onFallback ? (
-            <TouchableOpacity style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={onFallback} accessibilityRole="button" accessibilityLabel="Hızlı motorla aç">
+            <TouchableOpacity style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={onFallback} accessibilityRole="button" accessibilityLabel={t('pdf.openFast')}>
               <Ionicons name="flash-outline" size={20} color={c.text} />
-              <Text style={[styles.secondaryBtnText, { color: c.text }]}>Hızlı motorla aç</Text>
+              <Text style={[styles.secondaryBtnText, { color: c.text }]}>{t('pdf.openFast')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -248,7 +249,7 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
     );
   }
 
-  const busy = scanPct !== null ? `taranıyor %${scanPct}` : undefined;
+  const busy = scanPct !== null ? t('pdf.scanning', { pct: scanPct }) : undefined;
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
@@ -286,13 +287,13 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
           overScrollMode="never"
           onShouldStartLoadWithRequest={(req) => req.url.startsWith(PDFJS_BASE_URL) || req.url === 'about:blank'}
           onMessage={onMessage}
-          onError={() => { setErrorText('Görüntüleyici yüklenemedi.'); setStatus('error'); }}
-          onRenderProcessGone={() => { setErrorText('Görüntüleyici belleği yetersiz kaldı. Büyük dosyalar için hızlı motoru deneyin.'); setStatus('error'); }}
+          onError={() => { setErrorText(t('pdf.viewerLoadFail')); setStatus('error'); }}
+          onRenderProcessGone={() => { setErrorText(t('pdf.viewerOom')); setStatus('error'); }}
         />
         {status === 'loading' && (
           <View style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: c.background }]} pointerEvents="none">
             <ActivityIndicator size="large" color={c.primary} />
-            <Text style={[styles.title, { color: c.text, marginTop: 20 }]}>PDF hazırlanıyor…</Text>
+            <Text style={[styles.title, { color: c.text, marginTop: 20 }]}>{t('pdf.preparing')}</Text>
             {transferPct > 0 && transferPct < 100 ? (
               <Text style={{ color: c.primary, marginTop: 10, fontSize: 18, fontWeight: '800' }}>%{transferPct}</Text>
             ) : null}
@@ -301,7 +302,7 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
       </View>
 
       <View style={[styles.bottomBar, { backgroundColor: c.card, borderTopColor: c.border }]}>
-        {iconBtn('Önceki sayfa', 'chevron-back', () => goToPage(currentPage - 1), status !== 'ready' || currentPage <= 1)}
+        {iconBtn(t('pdf.prevPage'), 'chevron-back', () => goToPage(currentPage - 1), status !== 'ready' || currentPage <= 1)}
         <View style={styles.pageBox}>
           <TextInput
             style={[styles.pageInput, { color: c.text, borderColor: c.border, backgroundColor: c.surface }]}
@@ -313,23 +314,23 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
             returnKeyType="go"
             selectTextOnFocus
             editable={status === 'ready'}
-            accessibilityLabel={`Sayfaya git, geçerli sayfa ${currentPage}`}
+            accessibilityLabel={t('pdf.goToPageA11y', { page: currentPage })}
           />
           <Text style={[styles.pageTotal, { color: c.textSecondary }]}>/ {totalPages || '?'}</Text>
         </View>
         {iconBtn('Sonraki sayfa', 'chevron-forward', () => goToPage(currentPage + 1), status !== 'ready' || (totalPages > 0 && currentPage >= totalPages))}
         <View style={styles.flex} />
-        {iconBtn('Uzaklaştır', 'remove-circle-outline', () => run('window.__pdf.zoomBy(0.8)'), status !== 'ready')}
-        {iconBtn('Yakınlaştır', 'add-circle-outline', () => run('window.__pdf.zoomBy(1.25)'), status !== 'ready')}
+        {iconBtn(t('image.zoomOut'), 'remove-circle-outline', () => run('window.__pdf.zoomBy(0.8)'), status !== 'ready')}
+        {iconBtn(t('image.zoomIn'), 'add-circle-outline', () => run('window.__pdf.zoomBy(1.25)'), status !== 'ready')}
         {iconBtn('Belgede ara', 'search', () => setSearchOpen((o) => !o), status !== 'ready')}
       </View>
 
-      <Modal visible={pwVisible} transparent animationType="fade" onRequestClose={() => { setPwVisible(false); setErrorText('PDF parola korumalı.'); setStatus('error'); }}>
+      <Modal visible={pwVisible} transparent animationType="fade" onRequestClose={() => { setPwVisible(false); setErrorText(t('pdf.passwordProtected')); setStatus('error'); }}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: c.card, borderColor: c.border }]}>
-            <Text style={[styles.title, { color: c.text, marginTop: 0 }]}>Parola gerekli</Text>
+            <Text style={[styles.title, { color: c.text, marginTop: 0 }]}>{t('pdf.passwordTitle')}</Text>
             <Text style={[styles.desc, { color: pwWrong ? c.danger : c.textMuted }]}>
-              {pwWrong ? 'Parola yanlış, tekrar deneyin.' : 'Bu PDF parola ile korunuyor.'}
+              {pwWrong ? t('pdf.passwordWrong') : t('pdf.passwordNeeded')}
             </Text>
             <TextInput
               style={[styles.pwInput, { color: c.text, borderColor: c.border, backgroundColor: c.surface }]}
@@ -340,14 +341,14 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
               autoCapitalize="none"
               autoCorrect={false}
               onSubmitEditing={submitPassword}
-              accessibilityLabel="PDF parolası"
+              accessibilityLabel={t('pdf.passwordA11y')}
             />
             <View style={styles.row}>
-              <TouchableOpacity style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={() => { setPwVisible(false); setErrorText('PDF parola korumalı.'); setStatus('error'); }} accessibilityRole="button" accessibilityLabel="Vazgeç">
-                <Text style={[styles.secondaryBtnText, { color: c.text }]}>Vazgeç</Text>
+              <TouchableOpacity style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={() => { setPwVisible(false); setErrorText(t('pdf.passwordProtected')); setStatus('error'); }} accessibilityRole="button" accessibilityLabel={t('common.cancel')}>
+                <Text style={[styles.secondaryBtnText, { color: c.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: c.primary }]} onPress={submitPassword} accessibilityRole="button" accessibilityLabel="Aç">
-                <Text style={[styles.primaryBtnText, { color: c.onPrimary }]}>Aç</Text>
+              <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: c.primary }]} onPress={submitPassword} accessibilityRole="button" accessibilityLabel={t('common.open')}>
+                <Text style={[styles.primaryBtnText, { color: c.onPrimary }]}>{t('common.open')}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,5 +1,6 @@
 // Uygulama temalarının tek liste kaynağı (Ayarlar, Header, App paylaşır). RN içe aktarmaz; saf veri + saf fonksiyon.
 import { AppThemeMode, ThemePreference } from '../types';
+import { t } from '../i18n';
 
 export interface ThemeOption {
   id: AppThemeMode;
@@ -15,12 +16,12 @@ export const SYSTEM_DARK_THEME: AppThemeMode = 'emerald';
 export const SYSTEM_LIGHT_THEME: AppThemeMode = 'light';
 
 export const THEME_OPTIONS: readonly ThemeOption[] = [
-  { id: 'emerald', name: 'Zümrüt Slate', desc: 'Gözü yormayan yumuşak koyu tema (varsayılan)', icon: 'leaf' },
-  { id: 'dark', name: 'Siber Lacivert', desc: 'Gece mavisi zemin, camgöbeği vurgu', icon: 'moon' },
-  { id: 'oled', name: 'Saf Siyah (OLED)', desc: 'OLED ekranlarda derin siyah', icon: 'contrast' },
-  { id: 'light', name: 'Açık Tema', desc: 'Gündüz kullanımına uygun açık tema', icon: 'sunny' },
-  { id: 'purple', name: 'Amethyst', desc: 'Mor ve derin gece renkleri', icon: 'color-palette' },
-  { id: 'ocean', name: 'Derin Okyanus', desc: 'Mavi ve lacivert tonları', icon: 'water' },
+  { id: 'emerald', get name() { return t('theme.emerald.name'); }, get desc() { return t('theme.emerald.desc'); }, icon: 'leaf' },
+  { id: 'dark', get name() { return t('theme.dark.name'); }, get desc() { return t('theme.dark.desc'); }, icon: 'moon' },
+  { id: 'oled', get name() { return t('theme.oled.name'); }, get desc() { return t('theme.oled.desc'); }, icon: 'contrast' },
+  { id: 'light', get name() { return t('theme.light.name'); }, get desc() { return t('theme.light.desc'); }, icon: 'sunny' },
+  { id: 'purple', get name() { return t('theme.purple.name'); }, get desc() { return t('theme.purple.desc'); }, icon: 'color-palette' },
+  { id: 'ocean', get name() { return t('theme.ocean.name'); }, get desc() { return t('theme.ocean.desc'); }, icon: 'water' },
 ];
 
 export const THEME_IDS: readonly AppThemeMode[] = THEME_OPTIONS.map(t => t.id);

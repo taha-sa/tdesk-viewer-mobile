@@ -8,6 +8,7 @@ import * as Sharing from 'expo-sharing';
 import { FileInfo, AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
 import { FileService } from '../services/fileService';
+import { t } from '../i18n';
 
 // react-native-pdf yerel (native) modül gerektirir (Expo Go'da yoktur). Statik import uygulamayı düşürürdü;
 // bu yüzden ilk kullanımda, try/catch ile yüklenir.
@@ -161,7 +162,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
         onPress={() => openGridPage(item)}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`Sayfa ${item}`}
+        accessibilityLabel={t('pdf.pageA11y', { page: item })}
         accessibilityState={{ selected: active }}
       >
         <Ionicons name="document-text-outline" size={18} color={active ? '#0B0F19' : c.textMuted} />
@@ -189,18 +190,18 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
     return (
       <View style={[styles.center, { backgroundColor: c.background }]}>
         <Ionicons name="document-outline" size={56} color={c.textMuted} />
-        <Text style={[styles.title, { color: c.text }]}>Bu derlemede PDF motoru yok</Text>
+        <Text style={[styles.title, { color: c.text }]}>{t('pdf.noEngineTitle')}</Text>
         <Text style={[styles.desc, { color: c.textMuted }]}>
-          PDF görüntüleyici yerel bir modül gerektirir ve Expo Go içinde çalışmaz. Dosyayı başka bir uygulamada açabilirsiniz.
+          {t('pdf.noEngineBody')}
         </Text>
         <TouchableOpacity
           style={[styles.primaryBtn, { backgroundColor: c.primary }]}
           onPress={shareFile}
           accessibilityRole="button"
-          accessibilityLabel="Paylaş veya başka uygulamada aç"
+          accessibilityLabel={t('viewer.shareOpenA11y')}
         >
           <Ionicons name="share-outline" size={20} color="#0B0F19" />
-          <Text style={styles.primaryBtnText}>Paylaş / Başka uygulamada aç</Text>
+          <Text style={styles.primaryBtnText}>{t('viewer.shareOpen')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -211,13 +212,13 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
     return (
       <KeyboardAvoidingView style={[styles.center, { backgroundColor: c.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Ionicons name="lock-closed-outline" size={52} color={c.primary} />
-        <Text style={[styles.title, { color: c.text }]}>Bu PDF parola korumalı</Text>
-        {passwordTried && <Text style={[styles.desc, { color: '#EF4444' }]}>Parola yanlış, tekrar deneyin.</Text>}
+        <Text style={[styles.title, { color: c.text }]}>{t('pdf.protectedTitle')}</Text>
+        {passwordTried && <Text style={[styles.desc, { color: '#EF4444' }]}>{t('pdf.passwordWrong')}</Text>}
         <TextInput
           style={[styles.pwInput, { color: c.text, borderColor: c.border, backgroundColor: c.surface }]}
           value={passwordDraft}
           onChangeText={setPasswordDraft}
-          placeholder="Parola"
+          placeholder={t('pdf.passwordPlaceholder')}
           placeholderTextColor={c.textMuted}
           secureTextEntry
           autoCapitalize="none"
@@ -225,16 +226,16 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
           autoFocus
           onSubmitEditing={submitPassword}
           returnKeyType="done"
-          accessibilityLabel="PDF parolası"
+          accessibilityLabel={t('pdf.passwordA11y')}
         />
         <TouchableOpacity
           style={[styles.primaryBtn, { backgroundColor: c.primary, opacity: passwordDraft ? 1 : 0.5 }]}
           onPress={submitPassword}
           disabled={!passwordDraft}
           accessibilityRole="button"
-          accessibilityLabel="PDF'i aç"
+          accessibilityLabel={t('pdf.openA11y')}
         >
-          <Text style={styles.primaryBtnText}>Aç</Text>
+          <Text style={styles.primaryBtnText}>{t('common.open')}</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     );
@@ -245,18 +246,18 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
     return (
       <View style={[styles.center, { backgroundColor: c.background }]}>
         <Ionicons name="alert-circle-outline" size={56} color={c.textMuted} />
-        <Text style={[styles.title, { color: c.text }]}>PDF açılamadı</Text>
+        <Text style={[styles.title, { color: c.text }]}>{t('pdf.openFailTitle')}</Text>
         <Text style={[styles.desc, { color: c.textMuted }]}>
-          Dosya bozuk, eksik veya desteklenmeyen bir biçimde olabilir.
+          {t('pdf.openFailBody')}
         </Text>
         <View style={styles.row}>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: c.primary }]} onPress={retry} accessibilityRole="button" accessibilityLabel="Yeniden dene">
+          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: c.primary }]} onPress={retry} accessibilityRole="button" accessibilityLabel={t('common.retry')}>
             <Ionicons name="refresh" size={20} color="#0B0F19" />
-            <Text style={styles.primaryBtnText}>Yeniden dene</Text>
+            <Text style={styles.primaryBtnText}>{t('common.retry')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={shareFile} accessibilityRole="button" accessibilityLabel="Başka uygulamada aç">
+          <TouchableOpacity style={[styles.secondaryBtn, { borderColor: c.border }]} onPress={shareFile} accessibilityRole="button" accessibilityLabel={t('pdf.openInOther')}>
             <Ionicons name="share-outline" size={20} color={c.text} />
-            <Text style={[styles.secondaryBtnText, { color: c.text }]}>Başka uygulamada aç</Text>
+            <Text style={[styles.secondaryBtnText, { color: c.text }]}>{t('pdf.openInOther')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -307,8 +308,8 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
         {isLoading && (
           <View style={[StyleSheet.absoluteFill, styles.overlay, { backgroundColor: c.background }]}>
             <ActivityIndicator size="large" color={c.primary} />
-            <Text style={[styles.title, { color: c.text, marginTop: 20 }]}>PDF işleniyor...</Text>
-            <Text style={[styles.desc, { color: c.textMuted }]}>Büyük belgelerin açılması biraz zaman alabilir.</Text>
+            <Text style={[styles.title, { color: c.text, marginTop: 20 }]}>{t('pdf.processing')}</Text>
+            <Text style={[styles.desc, { color: c.textMuted }]}>{t('pdf.processingHint')}</Text>
             {progress > 0 && progress < 1 && (
               <Text style={{ color: c.primary, marginTop: 12, fontSize: 18, fontWeight: '800' }}>%{Math.round(progress * 100)}</Text>
             )}
@@ -317,7 +318,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
       </View>
 
       <View style={[styles.bottomBar, { backgroundColor: c.card, borderTopColor: c.border }]}>
-        {iconBtn('Önceki sayfa', 'chevron-back', () => goToPage(currentPage - 1), currentPage <= 1 || isLoading)}
+        {iconBtn(t('pdf.prevPage'), 'chevron-back', () => goToPage(currentPage - 1), currentPage <= 1 || isLoading)}
         <View style={styles.pageBox}>
           <TextInput
             style={[styles.pageInput, { color: c.text, borderColor: c.border, backgroundColor: c.surface }]}
@@ -329,19 +330,19 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
             returnKeyType="go"
             selectTextOnFocus
             editable={!isLoading}
-            accessibilityLabel={`Sayfaya git, geçerli sayfa ${currentPage}`}
+            accessibilityLabel={t('pdf.goToPageA11y', { page: currentPage })}
           />
           <Text style={[styles.pageTotal, { color: c.textSecondary }]}>/ {totalPages || '?'}</Text>
         </View>
         {iconBtn('Sonraki sayfa', 'chevron-forward', () => goToPage(currentPage + 1), isLoading || (totalPages > 0 && currentPage >= totalPages))}
         <View style={styles.flex} />
-        {iconBtn('Tüm sayfalar', 'grid', () => setIsGridVisible(true), totalPages === 0)}
+        {iconBtn(t('pdf.allPagesA11y'), 'grid', () => setIsGridVisible(true), totalPages === 0)}
       </View>
 
       <Modal visible={isGridVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsGridVisible(false)}>
         <View style={[styles.modal, { backgroundColor: c.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
-            <Text style={[styles.modalTitle, { color: c.text }]}>Tüm Sayfalar ({totalPages})</Text>
+            <Text style={[styles.modalTitle, { color: c.text }]}>{t('pdf.allPagesTitle', { count: totalPages })}</Text>
             <TouchableOpacity style={styles.iconBtn} onPress={() => setIsGridVisible(false)} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Kapat">
               <Ionicons name="close" size={24} color={c.text} />
             </TouchableOpacity>

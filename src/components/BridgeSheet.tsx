@@ -4,12 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
+import { t } from '../i18n';
 
 interface BridgeSheetProps {
   visible: boolean;
   appTheme: AppThemeMode;
   fileName: string;
-  /** pdf/pptx ise "Bilgisayarda sun" seçeneği gösterilir. */
+  /** pdf/pptx ise t('bridge.presentTitle') seçeneği gösterilir. */
   canPresent: boolean;
   locked: boolean;
   onSend: () => void;
@@ -17,24 +18,24 @@ interface BridgeSheetProps {
   onClose: () => void;
 }
 
-/** "Bilgisayar" eylemleri: T-Bridge ile PC'ye gönder / PC'de sun. */
+/** t('bridge.sheetTitle') eylemleri: T-Bridge ile PC'ye gönder / PC'de sun. */
 export const BridgeSheet: React.FC<BridgeSheetProps> = ({ visible, appTheme, fileName, canPresent, locked, onSend, onPresent, onClose }) => {
   const c = Colors[appTheme] || Colors.dark;
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Kapat">
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel={t('common.close')}>
         <Pressable style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border, paddingBottom: 16 + insets.bottom }]} onPress={() => {}}>
           <View style={[styles.grip, { backgroundColor: c.border }]} />
-          <Text style={[styles.title, { color: c.text }]}>Bilgisayar</Text>
+          <Text style={[styles.title, { color: c.text }]}>{t('bridge.sheetTitle')}</Text>
           <Text style={[styles.sub, { color: c.textMuted }]} numberOfLines={1}>{fileName}</Text>
 
-          <Row c={c} icon="paper-plane-outline" title="Bilgisayara gönder" desc="Dosyayı T-Bridge ile PC'ye aktarır." locked={locked} onPress={onSend} />
+          <Row c={c} icon="paper-plane-outline" title={t('bridge.sendTitle')} desc={t('bridge.sendDesc')} locked={locked} onPress={onSend} />
           {canPresent && (
-            <Row c={c} icon="easel-outline" title="Bilgisayarda sun" desc="PC'de tam ekran açar; telefon kumanda olur." locked={locked} onPress={onPresent} />
+            <Row c={c} icon="easel-outline" title={t('bridge.presentTitle')} desc={t('bridge.presentDesc')} locked={locked} onPress={onPresent} />
           )}
           <TouchableOpacity style={styles.cancel} onPress={onClose} accessibilityRole="button">
-            <Text style={[styles.cancelText, { color: c.textSecondary }]}>Vazgeç</Text>
+            <Text style={[styles.cancelText, { color: c.textSecondary }]}>{t('common.cancel')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>
@@ -67,13 +68,13 @@ export const BridgeInvite: React.FC<{ kind: 'send' | 'present' | null; appTheme:
     <Modal visible={kind !== null} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.dialogBackdrop}>
         <View style={[styles.dialog, { backgroundColor: c.surface, borderColor: c.border }]} accessibilityViewIsModal>
-          <TouchableOpacity style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel="Kapat">
+          <TouchableOpacity style={styles.close} onPress={onClose} accessibilityRole="button" accessibilityLabel={t('common.close')}>
             <Ionicons name="close" size={24} color={c.textSecondary} />
           </TouchableOpacity>
-          <Text style={[styles.dialogTitle, { color: c.text }]}>{kind === 'present' ? 'Sunumunuzu telefondan yönetin' : 'Belgeyi bilgisayarınıza gönderin'}</Text>
-          <Text style={[styles.dialogBody, { color: c.textSecondary }]}>{kind === 'present' ? 'T-Bridge ile sunumu bilgisayarda açın, slaytları telefonunuzdan ileri-geri alın.' : 'T-Bridge ile bu belgeyi tek dokunuşla bilgisayarınıza gönderebilir, sunumlarınızı telefondan yönetebilirsiniz.'}</Text>
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: c.primary }]} onPress={() => { void Linking.openURL('https://github.com/taha-sa/t-bridge-releases/releases/latest').catch(() => {}); }} accessibilityRole="button" accessibilityLabel="T-Bridge'i edin">
-            <Text style={[styles.primaryText, { color: c.onPrimary }]}>T-Bridge'i edin</Text>
+          <Text style={[styles.dialogTitle, { color: c.text }]}>{kind === 'present' ? t('bridge.invitePresentTitle') : t('bridge.inviteSendTitle')}</Text>
+          <Text style={[styles.dialogBody, { color: c.textSecondary }]}>{kind === 'present' ? t('bridge.invitePresentBody') : t('bridge.inviteSendBody')}</Text>
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: c.primary }]} onPress={() => { void Linking.openURL('https://github.com/taha-sa/t-bridge-releases/releases/latest').catch(() => {}); }} accessibilityRole="button" accessibilityLabel={t('bridge.getApp')}>
+            <Text style={[styles.primaryText, { color: c.onPrimary }]}>{t('bridge.getApp')}</Text>
           </TouchableOpacity>
         </View>
       </View>

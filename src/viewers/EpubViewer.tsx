@@ -15,6 +15,7 @@ import { FileService } from '../services/fileService';
 import {
   EpubBook, EpubError, TocEntry, readEpub, readChapterHtml, parseChapterLink,
 } from '../utils/epubParse';
+import { t } from '../i18n';
 
 interface EpubViewerProps {
   file: FileInfo;
@@ -26,7 +27,7 @@ type ReaderTheme = 'sepia' | 'light' | 'dark' | 'oled';
 interface ReaderPalette { bg: string; text: string; card: string; border: string; link: string; muted: string }
 
 const READER_THEMES: ReaderTheme[] = ['sepia', 'light', 'dark', 'oled'];
-const THEME_LABEL: Record<ReaderTheme, string> = { sepia: 'Sepya', light: 'Açık', dark: 'Koyu', oled: 'Siyah' };
+const themeLabel = (th: ReaderTheme): string => t(('epub.theme.' + th) as 'epub.theme.sepia');
 const THEME_ICON: Record<ReaderTheme, React.ComponentProps<typeof Ionicons>['name']> = {
   sepia: 'color-palette', light: 'sunny', dark: 'moon', oled: 'contrast',
 };
@@ -137,15 +138,15 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
       try {
         let b64 = file.base64;
         if (typeof file.size === 'number' && file.size > 50 * 1024 * 1024) {
-          throw new EpubError(`Kitap çok büyük (${Math.round(file.size / 1048576)} MB). En fazla 50 MB desteklenir.`);
+          throw new EpubError(t('epub.tooLarge', { size: Math.round(file.size / 1048576) }));
         }
         if (!b64) b64 = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.Base64 });
-        if (!b64) throw new EpubError('Dosya boş veya okunamadı.');
+        if (!b64) throw new EpubError(t('epub.emptyFile'));
         let zip: JSZip;
         try {
           zip = await JSZip.loadAsync(b64, { base64: true });
         } catch {
-          throw new EpubError('Dosya geçerli bir EPUB (ZIP) arşivi değil.');
+          throw new EpubError(t('epub.notEpub'));
         }
         const parsed = await readEpub(zip, () => cancelled);
         if (cancelled) return;
@@ -160,7 +161,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
       } catch (e) {
         if (cancelled) return;
         console.warn('EPUB okuma hatası:', e);
-        setLoadError(e instanceof EpubError ? e.message : 'Bu e-kitap ayrıştırılamadı veya içeriği bozuk.');
+        setLoadError(e instanceof EpubError ? e.message : t('epub.parseFail'));
         setLoading(false);
       }
     })();
@@ -195,7 +196,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
       } catch (e) {
         if (cancelled) return;
         console.warn('EPUB bölüm hatası:', e);
-        setChapterError('Bu bölüm okunamadı.');
+        setChapterError(t('epub.chapterReadFail'));
       }
     })();
     return () => { cancelled = true; };
@@ -328,7 +329,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
         style={[styles.tocItem, { borderBottomColor: palette.border, backgroundColor: active ? palette.card : 'transparent', paddingLeft: 16 + item.depth * 16 }]}
         onPress={() => { setShowToc(false); goToChapter(item.chapterIdx, item.fragment); }}
         accessibilityRole="button"
-        accessibilityLabel={`${item.title}, bölüm ${item.chapterIdx + 1}`}
+        accessibilityLabel={t('epub.tocItemA11y', { title: item.title, n: item.chapterIdx + 1 })}
         accessibilityState={{ selected: active }}
       >
         <Text style={[styles.tocText, { color: active ? ACCENT : palette.text, fontWeight: active ? '800' : '500' }]} numberOfLines={2}>
@@ -343,7 +344,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
     return (
       <View style={[styles.center, { backgroundColor: currentColors.background }]}>
         <ActivityIndicator size="large" color={ACCENT} />
-        <Text style={[styles.loadingText, { color: currentColors.textMuted }]}>E-kitap hazırlanıyor...</Text>
+        <Text style={[styles.loadingText, { color: currentColors.textMuted }]}>{t('epub.preparing')}</Text>
       </View>
     );
   }
@@ -353,15 +354,15 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
       <View style={[styles.center, { backgroundColor: currentColors.background }]}>
         <Ionicons name="book-outline" size={48} color={currentColors.textMuted} />
         <Text style={[styles.errorText, { color: currentColors.textSecondary, marginTop: 12 }]}>
-          {loadError || 'Bu e-kitap ayrıştırılamadı veya boş bir içerik.'}
+          {loadError || t('epub.emptyBook')}
         </Text>
         <TouchableOpacity
           style={[styles.retryBtn, { backgroundColor: ACCENT }]}
           onPress={() => setReloadKey((k) => k + 1)}
           accessibilityRole="button"
-          accessibilityLabel="Yeniden dene"
+          accessibilityLabel={t('common.retry')}
         >
-          <Text style={styles.retryText}>Yeniden dene</Text>
+          <Text style={styles.retryText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -373,15 +374,15 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
         <View style={styles.bookInfo}>
           <Text style={[styles.bookTitle, { color: palette.text }]} numberOfLines={1}>{bookTitle}</Text>
           <Text style={[styles.chapterTitle, { color: ACCENT }]} numberOfLines={1}>
-            {currentChapter?.title || `Bölüm ${chapterIdx + 1}`}
+            {currentChapter?.title || t('epub.chapterN', { n: chapterIdx + 1 })}
           </Text>
         </View>
         <View style={styles.toolGroup}>
-          {toolBtn('Bölümde ara', () => setSearchOpen((o) => !o), <Ionicons name="search" size={20} color={palette.text} />)}
-          {toolBtn('İçindekiler', () => setShowToc(true), <Ionicons name="list" size={20} color={palette.text} />)}
-          {toolBtn('Yazıyı küçült', () => setFontSize((f) => Math.max(MIN_FONT, f - 2)), <Text style={[styles.toolBtnText, { color: palette.text }]}>A-</Text>, fontSize <= MIN_FONT)}
-          {toolBtn('Yazıyı büyüt', () => setFontSize((f) => Math.min(MAX_FONT, f + 2)), <Text style={[styles.toolBtnText, { color: palette.text }]}>A+</Text>, fontSize >= MAX_FONT)}
-          {toolBtn(`Okuma teması: ${THEME_LABEL[readerTheme]}. Değiştir`, cycleTheme, <Ionicons name={THEME_ICON[readerTheme]} size={20} color={palette.text} />)}
+          {toolBtn(t('epub.searchChapter'), () => setSearchOpen((o) => !o), <Ionicons name="search" size={20} color={palette.text} />)}
+          {toolBtn(t('epub.toc'), () => setShowToc(true), <Ionicons name="list" size={20} color={palette.text} />)}
+          {toolBtn(t('epub.fontSmaller'), () => setFontSize((f) => Math.max(MIN_FONT, f - 2)), <Text style={[styles.toolBtnText, { color: palette.text }]}>A-</Text>, fontSize <= MIN_FONT)}
+          {toolBtn(t('epub.fontLarger'), () => setFontSize((f) => Math.min(MAX_FONT, f + 2)), <Text style={[styles.toolBtnText, { color: palette.text }]}>A+</Text>, fontSize >= MAX_FONT)}
+          {toolBtn(t('epub.themeA11y', { theme: themeLabel(readerTheme) }), cycleTheme, <Ionicons name={THEME_ICON[readerTheme]} size={20} color={palette.text} />)}
         </View>
       </View>
 
@@ -395,7 +396,7 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
           onNext={searchNext}
           onPrev={searchPrev}
           onClose={closeSearch}
-          scopeLabel="bu bölümde"
+          scopeLabel={t('epub.scopeChapter')}
         />
       ) : null}
 
@@ -412,9 +413,9 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
               style={[styles.retryBtn, { backgroundColor: ACCENT }]}
               onPress={() => setChapterReload((k) => k + 1)}
               accessibilityRole="button"
-              accessibilityLabel="Bölümü yeniden dene"
+              accessibilityLabel={t('epub.retryChapterA11y')}
             >
-              <Text style={styles.retryText}>Yeniden dene</Text>
+              <Text style={styles.retryText}>{t('common.retry')}</Text>
             </TouchableOpacity>
           </View>
         ) : pageHtml === null ? (
@@ -445,8 +446,8 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
             onShouldStartLoadWithRequest={onShouldStart}
             onMessage={onWebMessage}
             onLoadEnd={onPageLoaded}
-            onError={() => setChapterError('Bölüm görüntülenemedi.')}
-            onHttpError={() => setChapterError('Bölüm görüntülenemedi.')}
+            onError={() => setChapterError(t('epub.chapterDisplayFail'))}
+            onHttpError={() => setChapterError(t('epub.chapterDisplayFail'))}
           />
         )}
       </View>
@@ -457,14 +458,14 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
           onPress={() => goToChapter(chapterIdx - 1)}
           disabled={isFirst}
           accessibilityRole="button"
-          accessibilityLabel="Önceki bölüm"
+          accessibilityLabel={t('epub.prevChapter')}
           accessibilityState={{ disabled: isFirst }}
         >
           <Ionicons name="chevron-back" size={20} color={palette.text} />
-          <Text style={[styles.navBtnText, { color: palette.text }]}>Önceki</Text>
+          <Text style={[styles.navBtnText, { color: palette.text }]}>{t('common.prev')}</Text>
         </TouchableOpacity>
 
-        <Text style={[styles.progressText, { color: palette.text }]} accessibilityLabel={`Bölüm ${chapterIdx + 1} / ${total}`}>
+        <Text style={[styles.progressText, { color: palette.text }]} accessibilityLabel={t('epub.progressA11y', { n: chapterIdx + 1, total })}>
           {chapterIdx + 1} / {total}
         </Text>
 
@@ -473,10 +474,10 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
           onPress={() => goToChapter(chapterIdx + 1)}
           disabled={isLast}
           accessibilityRole="button"
-          accessibilityLabel="Sonraki bölüm"
+          accessibilityLabel={t('epub.nextChapter')}
           accessibilityState={{ disabled: isLast }}
         >
-          <Text style={[styles.navBtnText, { color: palette.text }]}>Sonraki</Text>
+          <Text style={[styles.navBtnText, { color: palette.text }]}>{t('common.next')}</Text>
           <Ionicons name="chevron-forward" size={20} color={palette.text} />
         </TouchableOpacity>
       </View>
@@ -484,13 +485,13 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
       <Modal visible={showToc} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowToc(false)}>
         <View style={[styles.modal, { backgroundColor: palette.bg }]}>
           <View style={[styles.modalHeader, { borderBottomColor: palette.border }]}>
-            <Text style={[styles.modalTitle, { color: palette.text }]}>İçindekiler</Text>
+            <Text style={[styles.modalTitle, { color: palette.text }]}>{t('epub.toc')}</Text>
             <TouchableOpacity
               style={styles.closeBtn}
               onPress={() => setShowToc(false)}
               hitSlop={HIT}
               accessibilityRole="button"
-              accessibilityLabel="Kapat"
+              accessibilityLabel={t('common.close')}
             >
               <Ionicons name="close" size={24} color={palette.text} />
             </TouchableOpacity>

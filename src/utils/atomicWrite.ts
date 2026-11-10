@@ -2,6 +2,7 @@
 // disk dolması / çökme / bellek yetersizliği orijinal içeriği yok eder. Burada önce yanına geçici dosya
 // yazılır, başarıyla yazıldıktan sonra hedefin üzerine taşınır (Android'de File.renameTo eski dosyayı değiştirir).
 import * as FileSystem from 'expo-file-system';
+import { t } from '../i18n';
 
 export async function writeFileAtomic(uri: string, data: string, encoding: 'utf8' | 'base64'): Promise<void> {
   const enc = encoding === 'base64' ? FileSystem.EncodingType.Base64 : FileSystem.EncodingType.UTF8;
@@ -15,7 +16,7 @@ export async function writeFileAtomic(uri: string, data: string, encoding: 'utf8
     await FileSystem.writeAsStringAsync(tmp, data, { encoding: enc });
     const info = await FileSystem.getInfoAsync(tmp);
     if (!info.exists || (data.length > 0 && info.size === 0)) {
-      throw new Error('Geçici dosya yazılamadı.');
+      throw new Error(t('io.tempWriteFail'));
     }
     await FileSystem.moveAsync({ from: tmp, to: uri });
   } catch (e) {
