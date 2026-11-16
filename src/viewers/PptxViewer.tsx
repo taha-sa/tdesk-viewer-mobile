@@ -871,6 +871,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const [gotoOpen, setGotoOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [areaH, setAreaH] = useState(0);
+  const [areaW, setAreaW] = useState(0);
 
   const zipRef = useRef<JSZip | null>(null);
   const imgCache = useRef<Map<string, string>>(new Map());
@@ -1092,7 +1093,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   };
 
   // ---- ölçüler ----
-  const pageW = Math.max(1, Math.round(winW));
+  const pageW = Math.max(1, areaW || Math.round(winW));
   const canvasW = useMemo(() => {
     const byW = pageW - 24;
     if (areaH <= 0) return byW;
@@ -1110,6 +1111,8 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const startY = useSharedValue(0);
   const startFocalX = useSharedValue(0);
   const startFocalY = useSharedValue(0);
+  const pinchStartReady = useSharedValue(false);
+  const initialGestureScale = useSharedValue(1);
   const panStartX = useSharedValue(0);
   const panStartY = useSharedValue(0);
   const pinching = useSharedValue(false);
@@ -1131,14 +1134,22 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       return limitSlideOffset(value, canvasH, areaH, s);
     };
     const pinch = Gesture.Pinch()
-      .onStart((e) => {
+      .onStart(() => {
         pinching.value = true; panBlocked.value = true;
-        startScale.value = scale.value; startX.value = x.value; startY.value = y.value;
-        startFocalX.value = e.focalX - pageW / 2;
-        startFocalY.value = e.focalY - areaH / 2;
+        // Android may report the previous focal point in its activation event.
+        // The first update has a matching focal point and scale, so use that as the baseline.
+        pinchStartReady.value = false;
       })
       .onUpdate((e) => {
-        const next = Math.max(1, Math.min(4, startScale.value * e.scale));
+        if (!pinchStartReady.value) {
+          startScale.value = scale.value; startX.value = x.value; startY.value = y.value;
+          startFocalX.value = e.focalX - pageW / 2;
+          startFocalY.value = e.focalY - areaH / 2;
+          initialGestureScale.value = e.scale > 0 ? e.scale : 1;
+          pinchStartReady.value = true;
+          return;
+        }
+        const next = Math.max(1, Math.min(4, startScale.value * e.scale / initialGestureScale.value));
         scale.value = next;
         x.value = limitX(pinchOffset(startFocalX.value, e.focalX - pageW / 2, startX.value, startScale.value, next), next);
         y.value = limitY(pinchOffset(startFocalY.value, e.focalY - areaH / 2, startY.value, startScale.value, next), next);
@@ -1162,7 +1173,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       y.value = limitY(next === 1 ? 0 : -(e.y - areaH / 2), next);
     });
     return Gesture.Simultaneous(pinch, pan, doubleTap);
-  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching, panBlocked]);
+  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching, panBlocked, pinchStartReady, initialGestureScale]);
 
   // ---- durumlar ----
   if (status === 'loading') {
@@ -1226,7 +1237,10 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       </View>
 
       {/* Slayt alanı */}
-      <View style={styles.visualContainer} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
+      <View style={styles.visualContainer} onLayout={(e) => {
+        setAreaW(Math.round(e.nativeEvent.layout.width));
+        setAreaH(Math.round(e.nativeEvent.layout.height));
+      }}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <GestureDetector gesture={gesture}>
             <Animated.View style={{ flex: 1, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
