@@ -1185,7 +1185,9 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
         x.value = limitX(panStartX.value + e.translationX, scale.value);
         y.value = limitY(panStartY.value + e.translationY, scale.value);
       });
-    const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((e, success) => {
+    const doubleTap = Gesture.Tap().numberOfTaps(2).maxDistance(8).maxDuration(300).maxDelay(300)
+      .onTouchesDown((e, state) => { if (e.allTouches.length > 1) state.fail(); })
+      .onEnd((e, success) => {
       if (!success) return;
       const next = scale.value > 1.01 ? 1 : 2;
       scale.value = next;

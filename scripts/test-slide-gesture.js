@@ -6,14 +6,18 @@ const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKi
 const mod = { exports: {} };
 new Function('module', 'exports', code)(mod, mod.exports);
 const { pinchOffset, limitSlideOffset, shouldApplyPinchUpdate } = mod.exports;
-// A short landscape slide in portrait: its touched point must not snap to the centre.
-for (const [content, viewport, focal, initial, s0, s1] of [[200, 700, 70, 0, 1, 2], [330, 760, -100, 30, 1.5, 3], [650, 340, 65, -25, 2, 3]]) {
+// Finger focus is preserved where the slide has enough room to move.
+for (const [content, viewport, focal, initial, s0, s1] of [[400, 300, 40, 0, 1, 2], [650, 340, 65, -25, 2, 3]]) {
   const offset = pinchOffset(focal, focal, initial, s0, s1);
   assert.equal(limitSlideOffset(offset, content, viewport, s1), offset);
   assert(Math.abs((focal - initial) / s0 - (focal - offset) / s1) < 1e-10);
 }
 assert.equal(pinchOffset(50, 80, 10, 1, 2), 0);
-assert.equal(limitSlideOffset(10000, 200, 700, 2), 518);
+// If smaller than the viewport, center it; otherwise neither edge may leave a blank gap.
+assert.equal(limitSlideOffset(100, 200, 700, 2), 0);
+assert.equal(limitSlideOffset(10000, 400, 300, 2), 250);
+assert.equal(limitSlideOffset(-10000, 400, 300, 2), -250);
+assert.equal(limitSlideOffset(10000, 400, 800, 3), 200);
 // Android's ACTION_POINTER_UP reports two pointers while focus is already at the remaining finger.
 let offset = pinchOffset(0, 0, 0, 1, 2);
 assert(shouldApplyPinchUpdate(true, 2));

@@ -4,11 +4,11 @@ export function pinchOffset(focalStart: number, focalNow: number, offsetStart: n
   return focalNow - (focalStart - offsetStart) * (scale / startScale);
 }
 
-/** Permit movement even when a slide is smaller than the viewport, while keeping a small part visible. */
+/** Center small slides; for larger slides stop at the edge of the viewport. */
 export function slidePanLimit(contentSize: number, viewportSize: number, scale: number): number {
   'worklet';
   const scaled = Math.max(0, contentSize * scale);
-  return Math.max(0, (viewportSize + scaled) / 2 - Math.min(32, scaled / 2));
+  return Math.max(0, (scaled - viewportSize) / 2);
 }
 
 export function limitSlideOffset(value: number, contentSize: number, viewportSize: number, scale: number): number {
