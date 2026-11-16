@@ -17,6 +17,7 @@ import JSZip from 'jszip';
 import Svg, { Ellipse, Line, Rect } from 'react-native-svg';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { limitSlideOffset, pinchOffset } from './slideGestureMath';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { FileInfo, AppThemeMode } from '../types';
@@ -1112,6 +1113,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const panStartX = useSharedValue(0);
   const panStartY = useSharedValue(0);
   const pinching = useSharedValue(false);
+  const panBlocked = useSharedValue(false);
   useEffect(() => {
     scale.value = 1; x.value = 0; y.value = 0;
   }, [index, pageW, areaH, file.uri, scale, x, y]);
@@ -1122,33 +1124,33 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const gesture = useMemo(() => {
     const limitX = (value: number, s: number) => {
       'worklet';
-      const limit = Math.max(0, (canvasW * s - pageW) / 2);
-      return Math.max(-limit, Math.min(limit, value));
+      return limitSlideOffset(value, canvasW, pageW, s);
     };
     const limitY = (value: number, s: number) => {
       'worklet';
-      const limit = Math.max(0, (canvasH * s - areaH) / 2);
-      return Math.max(-limit, Math.min(limit, value));
+      return limitSlideOffset(value, canvasH, areaH, s);
     };
     const pinch = Gesture.Pinch()
       .onStart((e) => {
-        pinching.value = true;
+        pinching.value = true; panBlocked.value = true;
         startScale.value = scale.value; startX.value = x.value; startY.value = y.value;
         startFocalX.value = e.focalX - pageW / 2;
         startFocalY.value = e.focalY - areaH / 2;
       })
       .onUpdate((e) => {
         const next = Math.max(1, Math.min(4, startScale.value * e.scale));
-        const ratio = next / startScale.value;
         scale.value = next;
-        x.value = limitX(e.focalX - pageW / 2 - (startFocalX.value - startX.value) * ratio, next);
-        y.value = limitY(e.focalY - areaH / 2 - (startFocalY.value - startY.value) * ratio, next);
+        x.value = limitX(pinchOffset(startFocalX.value, e.focalX - pageW / 2, startX.value, startScale.value, next), next);
+        y.value = limitY(pinchOffset(startFocalY.value, e.focalY - areaH / 2, startY.value, startScale.value, next), next);
       })
       .onFinalize(() => { pinching.value = false; });
     const pan = Gesture.Pan().maxPointers(1).minDistance(3)
-      .onStart(() => { panStartX.value = x.value; panStartY.value = y.value; })
+      .onStart(() => {
+        panBlocked.value = pinching.value;
+        panStartX.value = x.value; panStartY.value = y.value;
+      })
       .onUpdate((e) => {
-        if (pinching.value || scale.value <= 1) return;
+        if (pinching.value || panBlocked.value) return;
         x.value = limitX(panStartX.value + e.translationX, scale.value);
         y.value = limitY(panStartY.value + e.translationY, scale.value);
       });
@@ -1160,7 +1162,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       y.value = limitY(next === 1 ? 0 : -(e.y - areaH / 2), next);
     });
     return Gesture.Simultaneous(pinch, pan, doubleTap);
-  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching]);
+  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching, panBlocked]);
 
   // ---- durumlar ----
   if (status === 'loading') {
