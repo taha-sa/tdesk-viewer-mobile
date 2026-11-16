@@ -17,7 +17,7 @@ import JSZip from 'jszip';
 import Svg, { Ellipse, Line, Rect } from 'react-native-svg';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { limitSlideOffset, pinchOffset } from './slideGestureMath';
+import { limitSlideOffset, pinchOffset, shouldApplyPinchUpdate } from './slideGestureMath';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { FileInfo, AppThemeMode } from '../types';
@@ -958,13 +958,18 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
           phCache.set(path, m);
           return m;
         };
+        const relsCache = new Map<string, Record<string, Rel>>();
         const relsOf = async (partPath: string): Promise<Record<string, Rel>> => {
+          const cached = relsCache.get(partPath);
+          if (cached) return cached;
           const i = partPath.lastIndexOf('/');
           const dir = partPath.slice(0, i + 1);
           const relPath = dir + '_rels/' + partPath.slice(i + 1) + '.rels';
           try {
-            const x = await readXml(relPath);
-            return x ? parseRels(x, dir) : {};
+            const xml = await readXml(relPath);
+            const rels = xml ? parseRels(xml, dir) : {};
+            relsCache.set(partPath, rels);
+            return rels;
           } catch {
             return {};
           }
@@ -1112,6 +1117,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const startFocalX = useSharedValue(0);
   const startFocalY = useSharedValue(0);
   const pinchStartReady = useSharedValue(false);
+  const twoFingersDown = useSharedValue(false);
   const initialGestureScale = useSharedValue(1);
   const panStartX = useSharedValue(0);
   const panStartY = useSharedValue(0);
@@ -1119,7 +1125,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const panBlocked = useSharedValue(false);
   useEffect(() => {
     scale.value = 1; x.value = 0; y.value = 0;
-  }, [index, pageW, areaH, file.uri, scale, x, y]);
+  }, [index, file.uri, scale, x, y]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
@@ -1134,6 +1140,19 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       return limitSlideOffset(value, canvasH, areaH, s);
     };
     const pinch = Gesture.Pinch()
+      .onTouchesDown((e) => {
+        if (e.allTouches.length === 2) {
+          twoFingersDown.value = true;
+          pinchStartReady.value = false;
+        }
+      })
+      .onTouchesUp(() => {
+        // Android emits another pinch update with the lifted finger still in pointerCount,
+        // but its focal point has already moved to the remaining finger. Ignore it.
+        twoFingersDown.value = false;
+        pinchStartReady.value = false;
+      })
+      .onTouchesCancelled(() => { twoFingersDown.value = false; })
       .onStart(() => {
         pinching.value = true; panBlocked.value = true;
         // Android may report the previous focal point in its activation event.
@@ -1141,6 +1160,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
         pinchStartReady.value = false;
       })
       .onUpdate((e) => {
+        if (!shouldApplyPinchUpdate(twoFingersDown.value, e.numberOfPointers)) return;
         if (!pinchStartReady.value) {
           startScale.value = scale.value; startX.value = x.value; startY.value = y.value;
           startFocalX.value = e.focalX - pageW / 2;
@@ -1173,7 +1193,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       y.value = limitY(next === 1 ? 0 : -(e.y - areaH / 2), next);
     });
     return Gesture.Simultaneous(pinch, pan, doubleTap);
-  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching, panBlocked, pinchStartReady, initialGestureScale]);
+  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching, panBlocked, pinchStartReady, initialGestureScale, twoFingersDown]);
 
   // ---- durumlar ----
   if (status === 'loading') {

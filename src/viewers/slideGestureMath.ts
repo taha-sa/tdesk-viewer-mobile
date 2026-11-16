@@ -16,3 +16,9 @@ export function limitSlideOffset(value: number, contentSize: number, viewportSiz
   const limit = slidePanLimit(contentSize, viewportSize, scale);
   return Math.max(-limit, Math.min(limit, value));
 }
+
+/** Android pointer-up updates can still report two pointers although one has lifted. */
+export function shouldApplyPinchUpdate(twoFingersDown: boolean, reportedPointers: number): boolean {
+  'worklet';
+  return twoFingersDown && reportedPointers === 2;
+}
