@@ -11,9 +11,11 @@ import {
   Modal,
   ScrollView,
   Platform,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import JSZip from 'jszip';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { FileInfo, AppThemeMode } from '../types';
@@ -819,7 +821,6 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
 
   const zipRef = useRef<JSZip | null>(null);
   const imgCache = useRef<Map<string, string>>(new Map());
-  const visualRef = useRef<FlatList<SlideData>>(null);
   const textRef = useRef<FlatList<SlideData>>(null);
   const indexRef = useRef(0);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1020,7 +1021,8 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
 
   const scrollTo = useCallback(
     (i: number, animated: boolean) => {
-      const ref = viewMode === 'visual' ? visualRef : textRef;
+      if (viewMode === 'visual') return;
+      const ref = textRef;
       try {
         ref.current?.scrollToIndex({ index: i, animated });
       } catch {
@@ -1065,7 +1067,7 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
 
   const onScrollFailed = useCallback(
     (info: { index: number; averageItemLength: number }) => {
-      const ref = viewMode === 'visual' ? visualRef : textRef;
+      const ref = textRef;
       ref.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
       setTimeout(() => {
         try {
@@ -1100,6 +1102,56 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
     return Math.max(120, Math.min(byW, byH));
   }, [pageW, areaH, aspect]);
   const canvasH = canvasW / aspect;
+
+  // Her slayt ve alan değişiminde görünümü başlangıç boyutuna döndür.
+  const scale = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const transform = useRef({ scale: 1, x: 0, y: 0 });
+  useEffect(() => {
+    transform.current = { scale: 1, x: 0, y: 0 };
+    scale.setValue(1); translateX.setValue(0); translateY.setValue(0);
+  }, [index, pageW, areaH, viewMode, file.uri, scale, translateX, translateY]);
+
+  const gesture = useMemo(() => {
+    let initial = { scale: 1, x: 0, y: 0 }, focalX = 0, focalY = 0;
+    let panX = 0, panY = 0;
+    const apply = (s: number, x: number, y: number) => {
+      const maxX = Math.max(0, (canvasW * s - pageW) / 2);
+      const maxY = Math.max(0, (canvasH * s - areaH) / 2);
+      x = Math.max(-maxX, Math.min(maxX, x));
+      y = Math.max(-maxY, Math.min(maxY, y));
+      transform.current = { scale: s, x, y };
+      scale.setValue(s); translateX.setValue(x); translateY.setValue(y);
+    };
+    const pinch = Gesture.Pinch().runOnJS(true)
+      .onStart((e) => {
+        initial = { ...transform.current };
+        focalX = e.focalX - pageW / 2; focalY = e.focalY - areaH / 2;
+      })
+      .onUpdate((e) => {
+        const s = Math.max(1, Math.min(4, initial.scale * e.scale));
+        const ratio = s / initial.scale;
+        apply(s, focalX - (focalX - initial.x) * ratio + e.focalX - pageW / 2 - focalX,
+          focalY - (focalY - initial.y) * ratio + e.focalY - areaH / 2 - focalY);
+      });
+    const pan = Gesture.Pan().runOnJS(true).maxPointers(1).minDistance(8)
+      .onStart(() => { panX = transform.current.x; panY = transform.current.y; })
+      .onUpdate((e) => {
+        if (transform.current.scale > 1.01) apply(transform.current.scale, panX + e.translationX, panY + e.translationY);
+      })
+      .onEnd((e) => {
+        if (transform.current.scale <= 1.01 && Math.abs(e.translationX) > 60 && Math.abs(e.translationX) > Math.abs(e.translationY)) {
+          goTo(indexRef.current + (e.translationX < 0 ? 1 : -1));
+        }
+      });
+    const doubleTap = Gesture.Tap().runOnJS(true).numberOfTaps(2).onEnd((e, success) => {
+      if (!success) return;
+      if (transform.current.scale > 1.01) apply(1, 0, 0);
+      else apply(2, -(e.x - pageW / 2), -(e.y - areaH / 2));
+    });
+    return Gesture.Exclusive(doubleTap, Gesture.Simultaneous(pinch, pan));
+  }, [canvasW, canvasH, pageW, areaH, goTo, scale, translateX, translateY]);
 
   // ---- durumlar ----
   if (status === 'loading') {
@@ -1185,30 +1237,15 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
       {/* Slayt alanı */}
       {viewMode === 'visual' ? (
         <View style={styles.visualContainer} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
-          <FlatList
-            key={`v-${pageW}`}
-            ref={visualRef}
-            data={slides}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(s) => s.key}
-            initialScrollIndex={Math.min(index, slides.length - 1)}
-            getItemLayout={(_, i) => ({ length: pageW, offset: pageW * i, index: i })}
-            initialNumToRender={1}
-            maxToRenderPerBatch={2}
-            windowSize={3}
-            removeClippedSubviews={Platform.OS === 'android'}
-            onScrollToIndexFailed={onScrollFailed}
-            onMomentumScrollEnd={(ev) => {
-              const i = clamp(Math.round(ev.nativeEvent.contentOffset.x / pageW));
-              indexRef.current = i;
-              setIndex(i);
-            }}
-            renderItem={({ item }) => (
-              <SlidePage slide={item} pageW={pageW} canvasW={canvasW} canvasH={canvasH} slideWpt={slideWpt} load={loadImage} colors={colors} />
-            )}
-          />
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <GestureDetector gesture={gesture}>
+              <Animated.View style={{ flex: 1, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+                <Animated.View style={{ width: pageW, height: areaH, transform: [{ translateX }, { translateY }, { scale }] }}>
+                  <SlidePage slide={slides[index]} pageW={pageW} canvasW={canvasW} canvasH={canvasH} slideWpt={slideWpt} load={loadImage} colors={colors} />
+                </Animated.View>
+              </Animated.View>
+            </GestureDetector>
+          </GestureHandlerRootView>
         </View>
       ) : (
         <FlatList
