@@ -11,12 +11,12 @@ import {
   Modal,
   ScrollView,
   Platform,
-  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import JSZip from 'jszip';
 import Svg, { Ellipse, Line, Rect } from 'react-native-svg';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
 import { FileInfo, AppThemeMode } from '../types';
@@ -824,7 +824,7 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
   const flowRendered = flowEls.length > 0;
 
   return (
-    <View style={[styles.slidePageWrapper, { width: pageW }]}>
+    <View pointerEvents="none" style={[styles.slidePageWrapper, { width: pageW }]}>
       <View
         style={[styles.slideCanvas, { width: canvasW, height: canvasH, backgroundColor: bg, borderColor: colors.cardBorder }]}
         accessible
@@ -866,7 +866,6 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [data, setData] = useState<Loaded>({ slides: [], slideWpt: 960, aspect: 16 / 9 });
   const [index, setIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<'visual' | 'text'>('visual');
   const [notesOpen, setNotesOpen] = useState(false);
   const [gotoOpen, setGotoOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -874,7 +873,6 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
 
   const zipRef = useRef<JSZip | null>(null);
   const imgCache = useRef<Map<string, string>>(new Map());
-  const textRef = useRef<FlatList<SlideData>>(null);
   const indexRef = useRef(0);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1072,66 +1070,12 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   // ---- gezinme ----
   const clamp = useCallback((i: number) => Math.max(0, Math.min(slides.length - 1, i)), [slides.length]);
 
-  const scrollTo = useCallback(
-    (i: number, animated: boolean) => {
-      if (viewMode === 'visual') return;
-      const ref = textRef;
-      try {
-        ref.current?.scrollToIndex({ index: i, animated });
-      } catch {
-        /* onScrollToIndexFailed devralır */
-      }
-    },
-    [viewMode]
-  );
-
-  const goTo = useCallback(
-    (i: number) => {
-      if (slides.length === 0) return;
-      const t = clamp(i);
-      indexRef.current = t;
-      setIndex(t);
-      scrollTo(t, true);
-    },
-    [clamp, scrollTo, slides.length]
-  );
-
-  // mod/genişlik değişince konumu koru
-  useEffect(() => {
-    if (status !== 'ready' || viewMode !== 'text') return;
-    const h = setTimeout(() => {
-      try {
-        textRef.current?.scrollToIndex({ index: indexRef.current, animated: false });
-      } catch {
-        /* yok say */
-      }
-    }, 60);
-    return () => clearTimeout(h);
-  }, [viewMode, winW, status]);
-
-  const onViewable = useRef(({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
-    const f = viewableItems.find((v) => v.index !== null);
-    if (f && f.index !== null && f.index !== indexRef.current) {
-      indexRef.current = f.index;
-      setIndex(f.index);
-    }
-  });
-  const viewabilityCfg = useRef({ itemVisiblePercentThreshold: 20, minimumViewTime: 120 });
-
-  const onScrollFailed = useCallback(
-    (info: { index: number; averageItemLength: number }) => {
-      const ref = textRef;
-      ref.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
-      setTimeout(() => {
-        try {
-          ref.current?.scrollToIndex({ index: info.index, animated: false });
-        } catch {
-          /* vazgeç */
-        }
-      }, 120);
-    },
-    [viewMode]
-  );
+  const goTo = useCallback((i: number) => {
+    if (slides.length === 0) return;
+    const next = clamp(i);
+    indexRef.current = next;
+    setIndex(next);
+  }, [clamp, slides.length]);
 
   const copyText = async () => {
     const s = slides[index];
@@ -1156,55 +1100,67 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
   }, [pageW, areaH, aspect]);
   const canvasH = canvasW / aspect;
 
-  // Her slayt ve alan değişiminde görünümü başlangıç boyutuna döndür.
-  const scale = useRef(new Animated.Value(1)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(0)).current;
-  const transform = useRef({ scale: 1, x: 0, y: 0 });
+  // Dokunma hesapları UI iş parçacığında çalışır; JS yükü hareketi durdurmaz.
+  const scale = useSharedValue(1);
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const startScale = useSharedValue(1);
+  const startX = useSharedValue(0);
+  const startY = useSharedValue(0);
+  const startFocalX = useSharedValue(0);
+  const startFocalY = useSharedValue(0);
+  const panStartX = useSharedValue(0);
+  const panStartY = useSharedValue(0);
+  const pinching = useSharedValue(false);
   useEffect(() => {
-    transform.current = { scale: 1, x: 0, y: 0 };
-    scale.setValue(1); translateX.setValue(0); translateY.setValue(0);
-  }, [index, pageW, areaH, viewMode, file.uri, scale, translateX, translateY]);
+    scale.value = 1; x.value = 0; y.value = 0;
+  }, [index, pageW, areaH, file.uri, scale, x, y]);
 
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }, { translateY: y.value }, { scale: scale.value }],
+  }));
   const gesture = useMemo(() => {
-    let initial = { scale: 1, x: 0, y: 0 }, focalX = 0, focalY = 0;
-    let panX = 0, panY = 0;
-    const apply = (s: number, x: number, y: number) => {
-      const maxX = Math.max(0, (canvasW * s - pageW) / 2);
-      const maxY = Math.max(0, (canvasH * s - areaH) / 2);
-      x = Math.max(-maxX, Math.min(maxX, x));
-      y = Math.max(-maxY, Math.min(maxY, y));
-      transform.current = { scale: s, x, y };
-      scale.setValue(s); translateX.setValue(x); translateY.setValue(y);
+    const limitX = (value: number, s: number) => {
+      'worklet';
+      const limit = Math.max(0, (canvasW * s - pageW) / 2);
+      return Math.max(-limit, Math.min(limit, value));
     };
-    const pinch = Gesture.Pinch().runOnJS(true)
+    const limitY = (value: number, s: number) => {
+      'worklet';
+      const limit = Math.max(0, (canvasH * s - areaH) / 2);
+      return Math.max(-limit, Math.min(limit, value));
+    };
+    const pinch = Gesture.Pinch()
       .onStart((e) => {
-        initial = { ...transform.current };
-        focalX = e.focalX - pageW / 2; focalY = e.focalY - areaH / 2;
+        pinching.value = true;
+        startScale.value = scale.value; startX.value = x.value; startY.value = y.value;
+        startFocalX.value = e.focalX - pageW / 2;
+        startFocalY.value = e.focalY - areaH / 2;
       })
       .onUpdate((e) => {
-        const s = Math.max(1, Math.min(4, initial.scale * e.scale));
-        const ratio = s / initial.scale;
-        apply(s, focalX - (focalX - initial.x) * ratio + e.focalX - pageW / 2 - focalX,
-          focalY - (focalY - initial.y) * ratio + e.focalY - areaH / 2 - focalY);
-      });
-    const pan = Gesture.Pan().runOnJS(true).maxPointers(1).minDistance(8)
-      .onStart(() => { panX = transform.current.x; panY = transform.current.y; })
-      .onUpdate((e) => {
-        if (transform.current.scale > 1.01) apply(transform.current.scale, panX + e.translationX, panY + e.translationY);
+        const next = Math.max(1, Math.min(4, startScale.value * e.scale));
+        const ratio = next / startScale.value;
+        scale.value = next;
+        x.value = limitX(e.focalX - pageW / 2 - (startFocalX.value - startX.value) * ratio, next);
+        y.value = limitY(e.focalY - areaH / 2 - (startFocalY.value - startY.value) * ratio, next);
       })
-      .onEnd((e) => {
-        if (transform.current.scale <= 1.01 && Math.abs(e.translationX) > 60 && Math.abs(e.translationX) > Math.abs(e.translationY)) {
-          goTo(indexRef.current + (e.translationX < 0 ? 1 : -1));
-        }
+      .onFinalize(() => { pinching.value = false; });
+    const pan = Gesture.Pan().maxPointers(1).minDistance(3)
+      .onStart(() => { panStartX.value = x.value; panStartY.value = y.value; })
+      .onUpdate((e) => {
+        if (pinching.value || scale.value <= 1) return;
+        x.value = limitX(panStartX.value + e.translationX, scale.value);
+        y.value = limitY(panStartY.value + e.translationY, scale.value);
       });
-    const doubleTap = Gesture.Tap().runOnJS(true).numberOfTaps(2).onEnd((e, success) => {
+    const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd((e, success) => {
       if (!success) return;
-      if (transform.current.scale > 1.01) apply(1, 0, 0);
-      else apply(2, -(e.x - pageW / 2), -(e.y - areaH / 2));
+      const next = scale.value > 1.01 ? 1 : 2;
+      scale.value = next;
+      x.value = limitX(next === 1 ? 0 : -(e.x - pageW / 2), next);
+      y.value = limitY(next === 1 ? 0 : -(e.y - areaH / 2), next);
     });
-    return Gesture.Exclusive(doubleTap, Gesture.Simultaneous(pinch, pan));
-  }, [canvasW, canvasH, pageW, areaH, goTo, scale, translateX, translateY]);
+    return Gesture.Simultaneous(pinch, pan, doubleTap);
+  }, [canvasW, canvasH, pageW, areaH, scale, x, y, startScale, startX, startY, startFocalX, startFocalY, panStartX, panStartY, pinching]);
 
   // ---- durumlar ----
   if (status === 'loading') {
@@ -1243,22 +1199,6 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
     </Pressable>
   );
 
-  const segBtn = (mode: 'visual' | 'text', icon: React.ComponentProps<typeof Ionicons>['name'], label: string) => {
-    const on = viewMode === mode;
-    return (
-      <Pressable
-        style={[styles.toggleBtn, on && { backgroundColor: colors.primaryGlow, borderColor: colors.primary }]}
-        onPress={() => setViewMode(mode)}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ selected: on }}
-      >
-        <Ionicons name={icon} size={16} color={on ? colors.primary : colors.textMuted} />
-        <Text style={[styles.toggleBtnText, { color: on ? colors.primary : colors.textMuted }]}>{label}</Text>
-      </Pressable>
-    );
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Üst çubuk */}
@@ -1281,60 +1221,20 @@ export const PptxViewer: React.FC<PptxViewerProps> = ({ file, appTheme = 'emeral
             {iconBtn('document-text-outline', notesOpen ? t('pptx.hideNotes') : t('pptx.showNotes'), () => setNotesOpen((v) => !v), notesOpen)}
           </View>
         </View>
-        <View style={styles.viewToggleGroup}>
-          {segBtn('visual', 'easel-outline', t('pptx.visualView'))}
-          {segBtn('text', 'list-outline', t('pptx.textView'))}
-        </View>
       </View>
 
       {/* Slayt alanı */}
-      {viewMode === 'visual' ? (
-        <View style={styles.visualContainer} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <GestureDetector gesture={gesture}>
-              <Animated.View style={{ flex: 1, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
-                <Animated.View style={{ width: pageW, height: areaH, transform: [{ translateX }, { translateY }, { scale }] }}>
-                  <SlidePage slide={slides[index]} pageW={pageW} canvasW={canvasW} canvasH={canvasH} slideWpt={slideWpt} load={loadImage} colors={colors} />
-                </Animated.View>
+      <View style={styles.visualContainer} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <GestureDetector gesture={gesture}>
+            <Animated.View style={{ flex: 1, overflow: 'hidden', justifyContent: 'center', alignItems: 'center' }}>
+              <Animated.View style={[{ width: pageW, height: areaH }, animatedStyle]}>
+                <SlidePage slide={slides[index]} pageW={pageW} canvasW={canvasW} canvasH={canvasH} slideWpt={slideWpt} load={loadImage} colors={colors} />
               </Animated.View>
-            </GestureDetector>
-          </GestureHandlerRootView>
-        </View>
-      ) : (
-        <FlatList
-          key={`t-${pageW}`}
-          ref={textRef}
-          data={slides}
-          style={styles.textContainer}
-          contentContainerStyle={styles.textContent}
-          keyExtractor={(s) => s.key}
-          onScrollToIndexFailed={onScrollFailed}
-          onViewableItemsChanged={onViewable.current}
-          viewabilityConfig={viewabilityCfg.current}
-          initialNumToRender={6}
-          windowSize={7}
-          renderItem={({ item, index: i }) => (
-            <View style={[styles.textSlideCard, { backgroundColor: colors.card, borderColor: i === index ? colors.primary : colors.cardBorder }]}>
-              <Text style={[styles.textCardTitle, { color: colors.primary }]}>
-                Slayt {i + 1}
-                {item.hidden ? ' · ' + t('pptx.hiddenCaps') : ''}
-              </Text>
-              {!!item.title && <Text style={[styles.textCardHeading, { color: colors.text }]} selectable>{item.title}</Text>}
-              <Text style={[styles.textCardBody, { color: colors.text }]} selectable>
-                {item.text || 'Metin yok'}
-              </Text>
-              {!!item.notes && (
-                <View style={[styles.notesInline, { borderTopColor: colors.border }]}>
-                  <Text style={[styles.notesLabel, { color: colors.textMuted }]}>{t('pptx.notesCaps')}</Text>
-                  <Text style={[styles.textCardBody, { color: colors.textSecondary }]} selectable>
-                    {item.notes}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        />
-      )}
+            </Animated.View>
+          </GestureDetector>
+        </GestureHandlerRootView>
+      </View>
 
       {/* Konuşmacı notları paneli */}
       {notesOpen && (
