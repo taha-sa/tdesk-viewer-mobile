@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import JSZip from 'jszip';
+import Svg, { Ellipse, Line, Rect } from 'react-native-svg';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as FileSystem from 'expo-file-system';
 import * as Clipboard from 'expo-clipboard';
@@ -220,7 +221,9 @@ export interface Box {
 }
 export interface SlideEl {
   id: string;
-  kind: 'text' | 'image' | 'table' | 'unsupported';
+  kind: 'text' | 'image' | 'table' | 'shape' | 'unsupported';
+  shape?: { geometry: string; fill?: string; stroke?: string; strokeWidth?: number };
+  textBackground?: string;
   box?: Box; // yoksa akış yerleşimi
   paras?: Para[];
   anchor?: 't' | 'ctr' | 'b';
@@ -313,6 +316,24 @@ function runColor(rPr: XNode | undefined): string | undefined {
   const c = descend(rPr, 'a:solidFill', 'a:srgbClr');
   const v = c && c.a.val;
   return v && /^[0-9a-fA-F]{6}$/.test(v) ? '#' + v.toUpperCase() : undefined;
+}
+
+/** DrawingML'deki doğrudan RGB dolguları; tema renkleri ayrıca çözülmelidir. */
+function directColor(node: XNode | undefined): string | undefined {
+  const color = descend(node, 'a:solidFill', 'a:srgbClr');
+  const value = color && color.a.val;
+  return value && /^[0-9a-fA-F]{6}$/.test(value) ? '#' + value.toUpperCase() : undefined;
+}
+
+function parseShape(spPr: XNode | undefined): SlideEl['shape'] | undefined {
+  if (!spPr) return undefined;
+  const geometry = first(spPr, 'a:prstGeom')?.a.prst || 'rect';
+  if (!['rect', 'roundRect', 'ellipse', 'line'].includes(geometry)) return undefined;
+  const line = first(spPr, 'a:ln');
+  const fill = directColor(spPr);
+  const stroke = directColor(line);
+  if (!fill && !stroke) return undefined;
+  return { geometry, fill, stroke, strokeWidth: line?.a.w ? num(line.a.w) / 12700 : 1 };
 }
 
 function defaultSize(phType: string | undefined): number {
@@ -433,6 +454,13 @@ function walkTree(children: XNode[], T: Tf, ctx: SlideCtx, out: SlideEl[], count
     switch (ch.n) {
       case 'p:sp': {
         const txBody = first(ch, 'p:txBody');
+        const spPr = first(ch, 'p:spPr');
+        const shape = parseShape(spPr);
+        const shapeXf = readXfrm(first(spPr, 'a:xfrm'));
+        if (shape && shapeXf) {
+          counter.n++;
+          out.push({ id: 'e' + counter.n, kind: 'shape', box: toBox(shapeXf, T, ctx, shapeXf.rot, shapeXf.flipH), shape });
+        }
         if (!txBody) break;
         const ph = phOf(ch);
         const phType = ph ? ph.type : undefined;
@@ -453,7 +481,17 @@ function walkTree(children: XNode[], T: Tf, ctx: SlideCtx, out: SlideEl[], count
         const anchorRaw = bodyPr && bodyPr.a.anchor;
         const anchor: 't' | 'ctr' | 'b' = anchorRaw === 'ctr' ? 'ctr' : anchorRaw === 'b' ? 'b' : anchorRaw === 't' ? 't' : isTitle ? 'ctr' : 't';
         counter.n++;
-        out.push({ id: 'e' + counter.n, kind: 'text', box, paras, anchor, isTitle, fontScale });
+        out.push({ id: 'e' + counter.n, kind: 'text', box, paras, anchor, isTitle, fontScale, textBackground: shape?.fill });
+        break;
+      }
+      case 'p:cxnSp': {
+        const spPr = first(ch, 'p:spPr');
+        const xf = readXfrm(first(spPr, 'a:xfrm'));
+        const shape = parseShape(spPr);
+        if (xf && shape) {
+          counter.n++;
+          out.push({ id: 'e' + counter.n, kind: 'shape', box: toBox(xf, T, ctx, xf.rot, xf.flipH), shape: { ...shape, geometry: 'line' } });
+        }
         break;
       }
       case 'p:pic': {
@@ -667,6 +705,7 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
 
   const renderText = (el: SlideEl, flow: boolean) => {
     const fsc = el.fontScale || 1;
+    const textBg = el.textBackground || bg;
     const content = (el.paras || []).map((p, i) => {
       const fontSize = Math.max(5, p.size * fsc * ptScale);
       return (
@@ -676,7 +715,7 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
             fontSize,
             lineHeight: fontSize * 1.2,
             textAlign: p.align,
-            color: textDefault,
+            color: readableOn(textBg),
             marginLeft: p.level * fontSize * 1.2,
             marginBottom: fontSize * 0.25,
             fontWeight: el.isTitle ? '700' : '400',
@@ -684,7 +723,7 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
         >
           {p.bullet ? p.bullet + ' ' : ''}
           {p.runs.map((r, j) => {
-            const col = r.color && contrastRatio(r.color, bg) >= 2.5 ? r.color : undefined;
+            const col = r.color && contrastRatio(r.color, textBg) >= 2.5 ? r.color : undefined;
             return (
               <Text
                 key={j}
@@ -732,6 +771,20 @@ const SlidePage = React.memo(function SlidePage({ slide, pageW, canvasW, canvasH
       ? { left: `${b.l}%`, top: `${b.t}%`, width: `${b.w}%`, height: `${b.h}%` }
       : { left: '5%', top: '30%', width: '90%', height: '40%' };
     const boxStyle = [styles.abs, posStyle as object, b && b.rot ? { transform: [{ rotate: `${b.rot}deg` }] } : null];
+    if (el.kind === 'shape' && el.shape && b) {
+      const w = Math.max(1, b.w * canvasW / 100), h = Math.max(1, b.h * canvasH / 100);
+      const fill = el.shape.fill || 'none', stroke = el.shape.stroke || 'none';
+      const sw = Math.max(0.5, (el.shape.strokeWidth || 1) * ptScale);
+      return (
+        <View key={el.id} style={[boxStyle, el.shape.geometry === 'line' && { minWidth: 1, minHeight: 1 }]} pointerEvents="none">
+          <Svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+            {el.shape.geometry === 'ellipse' ? <Ellipse cx={w / 2} cy={h / 2} rx={Math.max(0, (w - sw) / 2)} ry={Math.max(0, (h - sw) / 2)} fill={fill} stroke={stroke} strokeWidth={sw} />
+              : el.shape.geometry === 'line' ? <Line x1={b.flipH ? w : 0} y1={0} x2={b.flipH ? 0 : w} y2={h} stroke={stroke} strokeWidth={sw} />
+              : <Rect x={sw / 2} y={sw / 2} width={Math.max(0, w - sw)} height={Math.max(0, h - sw)} rx={el.shape.geometry === 'roundRect' ? Math.min(w, h) * 0.15 : 0} fill={fill} stroke={stroke} strokeWidth={sw} />}
+          </Svg>
+        </View>
+      );
+    }
     if (el.kind === 'image' && el.imagePath) {
       return (
         <View key={el.id} style={boxStyle}>
