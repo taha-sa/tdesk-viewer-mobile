@@ -166,7 +166,7 @@ export function buildGrid(
   const totalCols = maxC - minC + 1;
   const colCount = Math.min(totalCols, MAX_COLS);
   const cells: string[][] = new Array(rowCount);
-  // Boş satır/hücreler için nesne ayırma: büyük, seyrek sayfalar belleği tüketmesin.
+  for (let r = 0; r < rowCount; r++) cells[r] = new Array(colCount).fill('');
   for (const k of keys) {
     if (k.charCodeAt(0) === 33) continue;
     const cell = ws[k] as RawCell | undefined;
@@ -175,11 +175,7 @@ export function buildGrid(
     const r = a.r - minR;
     const c = a.c - minC;
     if (r < 0 || c < 0 || r >= rowCount || c >= colCount) continue;
-    const value = cellText(cell);
-    if (value !== '') {
-      if (!cells[r]) cells[r] = [];
-      cells[r][c] = value;
-    }
+    cells[r][c] = cellText(cell);
   }
   return {
     name,
