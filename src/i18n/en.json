@@ -100,7 +100,9 @@
       "cannotSend": "This file cannot be sent. Reopen the file and try again.",
       "generic": "Could not communicate with T-Bridge. Try again.",
       "notInstalled": "T-Bridge is not installed. Get the T-Bridge app.",
-      "unavailable": "Could not connect to T-Bridge. Open the app once and try again."
+      "unavailable": "Could not connect to T-Bridge. Open the app once and try again.",
+      "outdated": "Your T-Bridge version does not support this feature. Update T-Bridge.",
+      "busy": "The previous transfer is still running. Wait for it to finish and try again."
     },
     "getApp": "Get T-Bridge",
     "invitePresentBody": "Open the presentation on your computer with T-Bridge and move through the slides from your phone.",
@@ -251,6 +253,7 @@
     "tags": "Tags"
   },
   "docx": {
+    "a11y": "Word document: {name}",
     "contentTooLarge": "The document content is too large to open safely. Try another device.",
     "corrupt": "The document appears to be corrupt and could not be opened. Try another file.",
     "displayFail": "The document could not be displayed",
@@ -341,6 +344,7 @@
     "allMissingHint": "The saved files were not found on the device. Manage them in the \"Files\" tab or open a new file.",
     "emptyBody": "Select a document with the \"Open file\" button above. Files can also be opened from the app's \"Open with\" menu (for example downloads or email attachments). Files you open are listed here; use the star to add favorites.",
     "emptyTitle": "You have not opened any files yet",
+    "filterA11y": "Filter: {label}",
     "goAllA11y": "Go to all files, {count} files",
     "heroFormats": "PDF, Word, Excel, PowerPoint, EPUB, Markdown, code, images or ZIP",
     "noFavs": "No favorite files",
@@ -349,6 +353,7 @@
     "noFilesOfType": "No files of this type",
     "otherFilterHint": "Select another filter or open a new file.",
     "pickA11y": "Open file. Pick a document from your device",
+    "recentFiles": "Recent Files",
     "searchAndSort": "Search and sort",
     "seeAll": "See all ({count})"
   },
@@ -418,6 +423,7 @@
       "withMessage": "Could not open the PDF: {message}"
     },
     "goToPageA11y": "Go to page, current page {page}",
+    "nextPage": "Next page",
     "noEngineBody": "The PDF viewer needs a native module and does not work in Expo Go. You can open the file in another app.",
     "noEngineTitle": "This build has no PDF engine",
     "openA11y": "Open the PDF",
@@ -438,6 +444,7 @@
     "processingHint": "Large documents can take a little while to open.",
     "protectedTitle": "This PDF is password-protected",
     "scanning": "scanning {pct}%",
+    "scopeTextPdf": "text PDF",
     "viewerLoadFail": "The viewer could not be loaded. Try again.",
     "viewerOom": "The viewer ran out of memory. Try the fast engine for large files.",
     "webNewTab": "Open in new tab",
@@ -493,6 +500,7 @@
     "running": "The presentation is open on the computer. Swipe or use the buttons to move on.",
     "swipeHint": "Swipe left: next · Swipe right: previous",
     "transferring": "Transferring file…",
+    "unknown": "No confirmation from the computer. Check the presentation on the PC.",
     "waiting": "Waiting for the computer to respond…"
   },
   "recent": {
@@ -732,8 +740,10 @@
     "pickPdfFail": "Could not select the PDF files. Try again.",
     "pickPhoto": "Select photos",
     "pickPhotoA11y": "Select photos from the gallery",
+    "readingFiles": "Reading files…",
     "removeImageA11y": "Remove image {n} from the selection",
     "removePdfA11y": "Remove {name} from the list",
+    "saving": "Saving…",
     "selectedImageA11y": "Selected image {n}",
     "shareA11y": "Share or save the PDF",
     "shareSave": "Share / Save",

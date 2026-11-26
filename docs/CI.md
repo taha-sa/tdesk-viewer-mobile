@@ -2,6 +2,8 @@
 
 Workflow'lar: `ci.yml` (her push/PR: tsc, i18n, test, lisans denetimi), `ota.yml` (OTA), `release.yml` (etiketli native yayın).
 
+`npm test`, EAS dışlama kurallarının `modules/tdesk-bridge/android` kaynaklarını koruduğunu ve Expo'nun `TDeskBridgeModule` sınıfını gerçekten autolink ettiğini de denetler. Üretilen kök Android projesi yalnız `/android/` kuralıyla dışlanır; `android/` gibi köksüz bir kural yerel modülü de paketten çıkarır. Native sürüm tesliminde APK içeriği ayrıca kontrol edilmelidir; başarılı bir EAS işi tek başına modülün APK'da bulunduğunu kanıtlamaz.
+
 ## Secrets
 - `EXPO_TOKEN`: expo.dev hesabı erişim token'ı (EAS build/update).
 - `RELEASE_TOKEN`: `taha-sa/tdesk-viewer-releases` deposunda release oluşturma yetkili GitHub PAT (contents: write).

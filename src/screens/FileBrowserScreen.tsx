@@ -242,7 +242,7 @@ export const FileBrowserScreen: React.FC<FileBrowserScreenProps> = ({ appTheme, 
 
       <View style={styles.listHeader}>
         <Text style={[styles.resultCount, { color: currentColors.textSecondary }]} accessibilityLiveRegion="polite">
-          {fileCount} dosya
+          {t('archive.fileCount', { count: fileCount })}
         </Text>
         <TouchableOpacity
           style={styles.importQuickBtn}

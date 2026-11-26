@@ -100,7 +100,9 @@
       "cannotSend": "Diese Datei kann nicht gesendet werden. Öffnen Sie die Datei erneut und versuchen Sie es noch einmal.",
       "generic": "Die Kommunikation mit T-Bridge ist fehlgeschlagen. Versuchen Sie es erneut.",
       "notInstalled": "T-Bridge ist nicht installiert. Holen Sie sich die T-Bridge-App.",
-      "unavailable": "Verbindung zu T-Bridge fehlgeschlagen. Öffnen Sie die App einmal und versuchen Sie es erneut."
+      "unavailable": "Verbindung zu T-Bridge fehlgeschlagen. Öffnen Sie die App einmal und versuchen Sie es erneut.",
+      "outdated": "Ihre T-Bridge-Version unterstützt diese Funktion nicht. Aktualisieren Sie T-Bridge.",
+      "busy": "Die vorherige Übertragung läuft noch. Warten Sie, bis sie abgeschlossen ist, und versuchen Sie es erneut."
     },
     "getApp": "T-Bridge holen",
     "invitePresentBody": "Öffnen Sie die Präsentation mit T-Bridge auf dem Computer und blättern Sie per Smartphone durch die Folien.",
@@ -251,6 +253,7 @@
     "tags": "Tags"
   },
   "docx": {
+    "a11y": "Word-Dokument: {name}",
     "contentTooLarge": "Der Dokumentinhalt ist zu groß, um sicher geöffnet zu werden. Versuchen Sie es auf einem anderen Gerät.",
     "corrupt": "Das Dokument scheint beschädigt zu sein und konnte nicht geöffnet werden. Versuchen Sie es mit einer anderen Datei.",
     "displayFail": "Das Dokument konnte nicht angezeigt werden",
@@ -341,6 +344,7 @@
     "allMissingHint": "Die gespeicherten Dateien wurden auf dem Gerät nicht gefunden. Verwalten Sie sie im Tab „Dateien“ oder öffnen Sie eine neue Datei.",
     "emptyBody": "Wählen Sie oben mit „Datei öffnen“ ein Dokument aus. Dateien lassen sich auch über „Öffnen mit“ öffnen (z. B. Downloads oder E-Mail-Anhänge). Geöffnete Dateien werden hier aufgelistet; mit dem Stern markieren Sie Favoriten.",
     "emptyTitle": "Sie haben noch keine Dateien geöffnet",
+    "filterA11y": "Filter: {label}",
     "goAllA11y": "Zu allen Dateien, {count} Dateien",
     "heroFormats": "PDF, Word, Excel, PowerPoint, EPUB, Markdown, Code, Bilder oder ZIP",
     "noFavs": "Keine Favoriten",
@@ -349,6 +353,7 @@
     "noFilesOfType": "Keine Dateien dieses Typs",
     "otherFilterHint": "Wählen Sie einen anderen Filter oder öffnen Sie eine neue Datei.",
     "pickA11y": "Datei öffnen. Wählen Sie ein Dokument auf Ihrem Gerät aus",
+    "recentFiles": "Zuletzt geöffnet",
     "searchAndSort": "Suchen und Sortieren",
     "seeAll": "Alle anzeigen ({count})"
   },
@@ -418,6 +423,7 @@
       "withMessage": "PDF konnte nicht geöffnet werden: {message}"
     },
     "goToPageA11y": "Zur Seite gehen, aktuelle Seite {page}",
+    "nextPage": "Nächste Seite",
     "noEngineBody": "Der PDF-Viewer benötigt ein natives Modul und funktioniert nicht in Expo Go. Sie können die Datei in einer anderen App öffnen.",
     "noEngineTitle": "Dieser Build enthält keine PDF-Engine",
     "openA11y": "PDF öffnen",
@@ -438,6 +444,7 @@
     "processingHint": "Das Öffnen großer Dokumente kann etwas dauern.",
     "protectedTitle": "Dieses PDF ist passwortgeschützt",
     "scanning": "wird durchsucht {pct} %",
+    "scopeTextPdf": "Text-PDF",
     "viewerLoadFail": "Der Viewer konnte nicht geladen werden. Versuchen Sie es erneut.",
     "viewerOom": "Dem Viewer ging der Speicher aus. Versuchen Sie bei großen Dateien die schnelle Engine.",
     "webNewTab": "In neuem Tab öffnen",
@@ -493,6 +500,7 @@
     "running": "Die Präsentation ist auf dem Computer geöffnet. Wischen Sie oder nutzen Sie die Schaltflächen zum Weiterblättern.",
     "swipeHint": "Nach links wischen: weiter · Nach rechts wischen: zurück",
     "transferring": "Datei wird übertragen…",
+    "unknown": "Keine Bestätigung vom Computer. Prüfen Sie die Präsentation am PC.",
     "waiting": "Warten auf die Antwort des Computers…"
   },
   "recent": {
@@ -732,8 +740,10 @@
     "pickPdfFail": "Die PDF-Dateien konnten nicht ausgewählt werden. Versuchen Sie es erneut.",
     "pickPhoto": "Fotos auswählen",
     "pickPhotoA11y": "Fotos aus der Galerie auswählen",
+    "readingFiles": "Dateien werden gelesen…",
     "removeImageA11y": "Bild {n} aus der Auswahl entfernen",
     "removePdfA11y": "{name} aus der Liste entfernen",
+    "saving": "Wird gespeichert…",
     "selectedImageA11y": "Ausgewähltes Bild {n}",
     "shareA11y": "PDF teilen oder speichern",
     "shareSave": "Teilen / Speichern",

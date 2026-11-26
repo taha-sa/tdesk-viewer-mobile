@@ -117,7 +117,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
       return;
     }
     console.warn('PDF Error:', msg);
-    setErrorText(msg || 'Bilinmeyen hata');
+    setErrorText(msg || t('pdf.openFailTitle'));
   }, []);
 
   const retry = useCallback(() => {
@@ -334,7 +334,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
           />
           <Text style={[styles.pageTotal, { color: c.textSecondary }]}>/ {totalPages || '?'}</Text>
         </View>
-        {iconBtn('Sonraki sayfa', 'chevron-forward', () => goToPage(currentPage + 1), isLoading || (totalPages > 0 && currentPage >= totalPages))}
+        {iconBtn(t('pdf.nextPage'), 'chevron-forward', () => goToPage(currentPage + 1), isLoading || (totalPages > 0 && currentPage >= totalPages))}
         <View style={styles.flex} />
         {iconBtn(t('pdf.allPagesA11y'), 'grid', () => setIsGridVisible(true), totalPages === 0)}
       </View>
@@ -343,7 +343,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({ file, appTheme = 'emerald'
         <View style={[styles.modal, { backgroundColor: c.background }]}>
           <View style={[styles.modalHeader, { borderBottomColor: c.border }]}>
             <Text style={[styles.modalTitle, { color: c.text }]}>{t('pdf.allPagesTitle', { count: totalPages })}</Text>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => setIsGridVisible(false)} hitSlop={HIT} accessibilityRole="button" accessibilityLabel="Kapat">
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setIsGridVisible(false)} hitSlop={HIT} accessibilityRole="button" accessibilityLabel={t('common.close')}>
               <Ionicons name="close" size={24} color={c.text} />
             </TouchableOpacity>
           </View>

@@ -86,7 +86,14 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
   }, [file.id, file.virtual]);
   useEffect(() => {
     alive.current = true;
-    return () => { alive.current = false; flushSave(); if (saveTimer.current) clearTimeout(saveTimer.current); };
+    return () => {
+      alive.current = false;
+      const r = ackResolver.current;
+      ackResolver.current = null;
+      r?.();
+      flushSave();
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [flushSave]);
 
   const waitAck = useCallback(() => new Promise<void>((resolve) => { ackResolver.current = resolve; }), []);
@@ -263,7 +270,7 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
           onNext={() => run('window.__pdf.next()')}
           onPrev={() => run('window.__pdf.prev()')}
           onClose={() => { setSearchOpen(false); setSearchText(''); }}
-          scopeLabel="metinli PDF"
+          scopeLabel={t('pdf.scopeTextPdf')}
           busyText={busy}
         />
       ) : null}
@@ -318,11 +325,11 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
           />
           <Text style={[styles.pageTotal, { color: c.textSecondary }]}>/ {totalPages || '?'}</Text>
         </View>
-        {iconBtn('Sonraki sayfa', 'chevron-forward', () => goToPage(currentPage + 1), status !== 'ready' || (totalPages > 0 && currentPage >= totalPages))}
+        {iconBtn(t('pdf.nextPage'), 'chevron-forward', () => goToPage(currentPage + 1), status !== 'ready' || (totalPages > 0 && currentPage >= totalPages))}
         <View style={styles.flex} />
         {iconBtn(t('image.zoomOut'), 'remove-circle-outline', () => run('window.__pdf.zoomBy(0.8)'), status !== 'ready')}
         {iconBtn(t('image.zoomIn'), 'add-circle-outline', () => run('window.__pdf.zoomBy(1.25)'), status !== 'ready')}
-        {iconBtn('Belgede ara', 'search', () => setSearchOpen((o) => !o), status !== 'ready')}
+        {iconBtn(t('viewers.searchInDoc'), 'search', () => setSearchOpen((o) => !o), status !== 'ready')}
       </View>
 
       <Modal visible={pwVisible} transparent animationType="fade" onRequestClose={() => { setPwVisible(false); setErrorText(t('pdf.passwordProtected')); setStatus('error'); }}>

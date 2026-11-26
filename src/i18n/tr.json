@@ -100,7 +100,9 @@
       "cannotSend": "Bu dosya gönderilemiyor. Dosyayı yeniden açıp tekrar deneyin.",
       "generic": "T-Bridge ile iletişim kurulamadı. Tekrar deneyin.",
       "notInstalled": "T-Bridge kurulu değil. T-Bridge uygulamasını edinin.",
-      "unavailable": "T-Bridge'e bağlanılamadı. Uygulamayı bir kez açıp tekrar deneyin."
+      "unavailable": "T-Bridge'e bağlanılamadı. Uygulamayı bir kez açıp tekrar deneyin.",
+      "outdated": "T-Bridge sürümünüz bu özelliği desteklemiyor. T-Bridge uygulamasını güncelleyin.",
+      "busy": "Önceki aktarım devam ediyor. Bitmesini bekleyip tekrar deneyin."
     },
     "getApp": "T-Bridge'i edinin",
     "invitePresentBody": "T-Bridge ile sunumu bilgisayarda açın, slaytları telefonunuzdan ileri-geri alın.",
@@ -251,6 +253,7 @@
     "tags": "Etiketler"
   },
   "docx": {
+    "a11y": "Word belgesi: {name}",
     "contentTooLarge": "Belgenin içeriği çok büyük; güvenli şekilde açılamıyor. Başka bir cihazda deneyin.",
     "corrupt": "Belge bozuk görünüyor ve açılamadı. Başka bir dosya deneyin.",
     "displayFail": "Belge görüntülenemedi",
@@ -341,6 +344,7 @@
     "allMissingHint": "Kayıtlı dosyalar cihazda bulunamadı. \"Dosyalar\" sekmesinden yönetebilir veya yeni bir dosya açabilirsiniz.",
     "emptyBody": "Yukarıdaki \"Dosya aç\" düğmesiyle bir belge seçin. Dosyalar uygulamanın \"Birlikte aç\" menüsünden (ör. indirilenler, e-posta eki) de açılabilir. Açtığınız dosyalar burada listelenir; yıldızla favori yapabilirsiniz.",
     "emptyTitle": "Henüz dosya açmadınız",
+    "filterA11y": "Filtre: {label}",
     "goAllA11y": "Tüm dosyalara git, {count} dosya",
     "heroFormats": "PDF, Word, Excel, PowerPoint, EPUB, Markdown, kod, görsel veya ZIP",
     "noFavs": "Favori dosya yok",
@@ -349,6 +353,7 @@
     "noFilesOfType": "Bu türde dosya yok",
     "otherFilterHint": "Başka bir filtre seçin ya da yeni bir dosya açın.",
     "pickA11y": "Dosya aç. Cihazdan bir belge seçin",
+    "recentFiles": "Son Dosyalar",
     "searchAndSort": "Arama ve sıralama",
     "seeAll": "Tümünü gör ({count})"
   },
@@ -418,6 +423,7 @@
       "withMessage": "PDF açılamadı: {message}"
     },
     "goToPageA11y": "Sayfaya git, geçerli sayfa {page}",
+    "nextPage": "Sonraki sayfa",
     "noEngineBody": "PDF görüntüleyici yerel bir modül gerektirir ve Expo Go içinde çalışmaz. Dosyayı başka bir uygulamada açabilirsiniz.",
     "noEngineTitle": "Bu derlemede PDF motoru yok",
     "openA11y": "PDF'i aç",
@@ -438,6 +444,7 @@
     "processingHint": "Büyük belgelerin açılması biraz zaman alabilir.",
     "protectedTitle": "Bu PDF parola korumalı",
     "scanning": "taranıyor %{pct}",
+    "scopeTextPdf": "metinli PDF",
     "viewerLoadFail": "Görüntüleyici yüklenemedi. Tekrar deneyin.",
     "viewerOom": "Görüntüleyici belleği yetersiz kaldı. Büyük dosyalar için hızlı motoru deneyin.",
     "webNewTab": "Yeni sekmede aç",
@@ -493,6 +500,7 @@
     "running": "Bilgisayarda sunum açık. Kaydırarak veya düğmelerle ilerleyin.",
     "swipeHint": "Sola kaydırın: sonraki · Sağa kaydırın: önceki",
     "transferring": "Dosya aktarılıyor…",
+    "unknown": "Bilgisayardan doğrulama gelmedi. Sunumu bilgisayarda kontrol edin.",
     "waiting": "Bilgisayarın yanıtı bekleniyor…"
   },
   "recent": {
@@ -732,8 +740,10 @@
     "pickPdfFail": "PDF dosyaları seçilemedi. Tekrar deneyin.",
     "pickPhoto": "Fotoğraf seç",
     "pickPhotoA11y": "Galeriden fotoğraf seç",
+    "readingFiles": "Dosyalar okunuyor…",
     "removeImageA11y": "Görsel {n} seçimden çıkar",
     "removePdfA11y": "{name} dosyasını listeden çıkar",
+    "saving": "Kaydediliyor…",
     "selectedImageA11y": "Seçili görsel {n}",
     "shareA11y": "PDF'i paylaş veya kaydet",
     "shareSave": "Paylaş / Kaydet",

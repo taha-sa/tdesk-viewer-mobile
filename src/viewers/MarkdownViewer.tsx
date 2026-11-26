@@ -326,8 +326,8 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ file, appTheme =
         </View>
         {toast ? <Text style={[styles.toast, { color: c.textSecondary }]} accessibilityLiveRegion="polite">{toast}</Text> : <View style={{ flex: 1 }} />}
         <View style={styles.toolGroup}>
-          {barBtn('Belgede ara', 'search', null, () => setSearchOpen((o) => !o))}
-          {barBtn('Metni kopyala', 'copy-outline', null, handleCopy)}
+          {barBtn(t('viewers.searchInDoc'), 'search', null, () => setSearchOpen((o) => !o))}
+          {barBtn(t('viewers.copyAll'), 'copy-outline', null, handleCopy)}
           {barBtn(t('markdown.shareText'), 'share-outline', null, handleShare)}
         </View>
       </View>

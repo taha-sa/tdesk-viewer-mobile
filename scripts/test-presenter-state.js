@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+const source = fs.readFileSync('src/services/presenterState.ts', 'utf8');
+const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+const m = { exports: {} }; new Function('module', 'exports', 'require', js)(m, m.exports, require);
+const { presentationResult: result, presentationTimeout: timeout } = m.exports;
+const reply = (ok, connected, state) => ({ ok, connected, state, message: '' });
+assert.equal(result(null, reply(false, true)), 'failed');
+assert.equal(timeout('failed'), 'failed');
+assert.equal(result('transferring', reply(false, false)), 'failed');
+assert.equal(timeout('transferring'), 'unknown');
+assert.equal(timeout(null), 'unknown');
+assert.equal(result('unknown', reply(true, true, 'opened')), 'opened');
+assert.equal(result('opened', reply(false, true)), 'opened');
+console.log('Presenter state checks passed');

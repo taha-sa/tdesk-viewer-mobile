@@ -18,6 +18,7 @@ export type PresentKey = 'next' | 'prev' | 'end';
 
 interface TDeskBridgeNative {
   isPackageInstalled(pkg: string): boolean;
+  getBridgeStatus?(): 'missing' | 'outdated' | 'ready';
   sendToBridge(uri: string): Promise<void>;
   present(uri: string): Promise<void>;
   presentKey(key: PresentKey): Promise<void>;
@@ -37,6 +38,11 @@ const MISSING = () => Promise.reject(new Error('T-Bridge köprüsü bu derlemede
 export const TDeskBridge = {
   /** Modül kullanılabilir mi (Android + yerel derleme). */
   available: native !== null,
+  getBridgeStatus(): 'missing' | 'outdated' | 'ready' | 'unavailable' {
+    if (!native) return 'unavailable';
+    try { return native.getBridgeStatus?.() ?? (native.isPackageInstalled(BRIDGE_PACKAGE) ? 'ready' : 'missing'); }
+    catch { return 'unavailable'; }
+  },
   isPackageInstalled(pkg: string): boolean {
     try { return native ? native.isPackageInstalled(pkg) : false; } catch { return false; }
   },

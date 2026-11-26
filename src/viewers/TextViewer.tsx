@@ -192,7 +192,7 @@ export const TextViewer: React.FC<TextViewerProps> = ({ file, appTheme = 'dark' 
           numberOfLines={1}
           accessibilityLiveRegion="polite"
         >
-          {toast || `${lines.length} SATIR · ${status.encoding}`}
+          {toast || `${t('viewers.lineCount', { count: lines.length }).toUpperCase()} · ${status.encoding}`}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarRight}>
           <ToolButton label={t('common.search')} onPress={() => (search.open ? search.close() : search.setOpen(true))} selected={search.open}>

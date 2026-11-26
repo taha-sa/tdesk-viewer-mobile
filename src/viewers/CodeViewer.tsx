@@ -263,7 +263,7 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({
             }
           },
         },
-        { text: 'Kapat', style: 'cancel' },
+        { text: t('common.close'), style: 'cancel' },
       ]);
     } catch {
       Alert.alert(t('common.error'), t('codeViewer.pdfFail'));

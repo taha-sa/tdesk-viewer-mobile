@@ -160,16 +160,18 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
     setBusy('images');
     setResult(null);
     try {
-      let html =
+      const parts: string[] = [
         '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
-        '<style>@page{margin:0}body{margin:0;padding:0;background:#fff}' +
-        '.page{display:flex;justify-content:center;align-items:center;width:100%;height:100vh;page-break-after:always}' +
-        'img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body>';
+          '<style>@page{margin:0}body{margin:0;padding:0;background:#fff}' +
+          '.page{display:flex;justify-content:center;align-items:center;width:100%;height:100vh;page-break-after:always}' +
+          'img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body>',
+      ];
       for (const img of selectedImages) {
         const b64 = await FileSystem.readAsStringAsync(img.uri, { encoding: FileSystem.EncodingType.Base64 });
-        html += `<div class="page"><img src="data:${img.mime};base64,${b64}" /></div>`;
+        parts.push(`<div class="page"><img src="data:${img.mime};base64,${b64}" /></div>`);
       }
-      html += '</body></html>';
+      parts.push('</body></html>');
+      const html = parts.join('');
 
       const printed = await Print.printToFileAsync({ html });
       let finalUri = printed.uri;
@@ -247,7 +249,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
 
     setBusy('merge');
     setResult(null);
-    setMergeProgress('Dosyalar okunuyor...');
+    setMergeProgress(t('tools.readingFiles'));
     try {
       const inputs: Uint8Array[] = [];
       for (const pdf of selectedPdfs) {
@@ -260,7 +262,7 @@ export const ToolsScreen: React.FC<ToolsScreenProps> = ({ appTheme, onOpenFile }
       const cacheDir = FileSystem.cacheDirectory;
       if (!cacheDir) throw new Error('cache');
       const target = `${cacheDir}tdesk_birlesik_${stampNow()}.pdf`;
-      if (mounted.current) setMergeProgress('Kaydediliyor...');
+      if (mounted.current) setMergeProgress(t('tools.saving'));
       await FileSystem.writeAsStringAsync(target, bytesToBase64(merged.bytes), { encoding: FileSystem.EncodingType.Base64 });
       await finalizeOutput(
         target,

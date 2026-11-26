@@ -459,6 +459,12 @@ export const ViewerScreen: React.FC<ViewerScreenProps> = ({
         onClose={() => setSheetOpen(false)}
       />
 
+      <BridgeInvite
+        kind={bridgeInvite}
+        appTheme={appTheme}
+        onClose={() => setBridgeInvite(null)}
+      />
+
       {/* Dosya Bilgi Detay Modalı */}
       <FileDetailsModal
         visible={showDetailsModal}

@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, PanResponder, ActivityIndicat
 import { Ionicons } from '@expo/vector-icons';
 import { AppThemeMode } from '../types';
 import { Colors } from '../theme/colors';
-import { onBridgeResult, sendPresentKey, PresentKey, PresentState } from '../services/bridgeService';
+import { onBridgeResult, sendPresentKey, PresentKey } from '../services/bridgeService';
+import { PresenterPhase, presentationResult, presentationTimeout } from '../services/presenterState';
 import { t } from '../i18n';
 
 interface PresenterRemoteProps {
@@ -18,7 +19,7 @@ interface PresenterRemoteProps {
 }
 
 const SWIPE_MIN = 48;
-/** Bu sürede durum olayı gelmezse (eski T-Bridge) sunum açık varsayılır. */
+/** Eski köprülerde yanıt gelmezse durum bilinmiyor olarak gösterilir. */
 const STATE_TIMEOUT_MS = 20000;
 
 /**
@@ -32,18 +33,20 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
   const [pressed, setPressed] = useState<PresentKey | null>(null);
   const alive = useRef(true);
   // Sunum durumu: null = henüz olay yok; 'opened' eski T-Bridge için zaman aşımıyla da atanır.
-  const [phase, setPhase] = useState<PresentState | null>(null);
+  const [phase, setPhase] = useState<PresenterPhase>(null);
   const [failMsg, setFailMsg] = useState<string | null>(null);
+  const phaseRef = useRef<PresenterPhase>(null);
+  phaseRef.current = phase;
 
   // Yeni başlatma (veya yeniden deneme): durumu sıfırla.
   useEffect(() => {
-    if (starting) { setPhase(null); setFailMsg(null); }
+    if (starting) { phaseRef.current = null; setPhase(null); setFailMsg(null); }
   }, [starting]);
 
   // Dosya gönderildi ama T-Bridge durum bildirmedi: 20 sn sonra eski davranışa düş.
   useEffect(() => {
-    if (starting || startError || phase === 'opened' || phase === 'failed') return;
-    const t = setTimeout(() => { if (alive.current) setPhase('opened'); }, STATE_TIMEOUT_MS);
+    if (starting || startError || phase === 'opened' || phase === 'failed' || phase === 'unknown') return;
+    const t = setTimeout(() => { if (alive.current) setPhase(current => presentationTimeout(current)); }, STATE_TIMEOUT_MS);
     return () => clearTimeout(t);
   }, [starting, startError, phase]);
 
@@ -51,13 +54,11 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
     alive.current = true;
     const sub = onBridgeResult((r) => {
       if (!alive.current) return;
-      if (r.state) {
-        setPhase(r.state);
-        if (r.state === 'failed') setFailMsg(r.message || t('presenter.failedOpen'));
-        else if (r.message) setStatus(r.message);
-        return;
-      }
-      if (r.message) setStatus(r.message);
+      const next = presentationResult(phaseRef.current, r);
+      phaseRef.current = next;
+      setPhase(next);
+      if (next === 'failed') setFailMsg(r.message || t('presenter.failedOpen'));
+      else if (r.message) setStatus(r.message);
       setBad(!r.ok);
     });
     return () => { alive.current = false; sub.remove(); };
@@ -135,7 +136,7 @@ export const PresenterRemote: React.FC<PresenterRemoteProps> = ({ appTheme, file
       <View style={[styles.statusPill, { backgroundColor: bad ? c.danger + '24' : c.primaryGlow }]} accessibilityLiveRegion="polite">
         {(transferring || waiting) ? <ActivityIndicator size="small" color={c.primary} /> : <Ionicons name={bad ? 'warning-outline' : 'desktop-outline'} size={16} color={bad ? c.danger : c.primary} />}
         <Text style={[styles.statusText, { color: bad ? c.danger : c.textSecondary }]} numberOfLines={2}>
-          {transferring ? t('presenter.transferring') : waiting ? t('presenter.waiting') : (status || t('presenter.running'))}
+          {transferring ? t('presenter.transferring') : waiting ? t('presenter.waiting') : phase === 'unknown' ? t('presenter.unknown') : (status || t('presenter.running'))}
         </Text>
       </View>
 

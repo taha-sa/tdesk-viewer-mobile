@@ -2,7 +2,7 @@
   "expo": {
     "name": "T-Desk Viewer",
     "slug": "tdesk-viewer",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "scheme": "tdeskviewer",
     "orientation": "default",
     "icon": "./assets/icon.png",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#14352B"
+      "backgroundColor": "#090D14"
     },
     "ios": {
       "supportsTablet": true,
@@ -46,10 +46,10 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#14352B"
+        "backgroundColor": "#090D14"
       },
       "package": "com.tdesk.viewer",
-      "versionCode": 2,
+      "versionCode": 4,
       "permissions": [
         "android.permission.INTERNET"
       ],
@@ -164,7 +164,8 @@
           "microphonePermission": false
         }
       ],
-      "./plugins/withBridgeQueries"
+      "./plugins/withBridgeQueries",
+      "./plugins/withAndroidReleaseOpt"
     ],
     "extra": {
       "eas": {

@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -15,6 +16,7 @@ import android.os.Messenger
 import androidx.core.content.FileProvider
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
@@ -38,12 +40,20 @@ class TDeskBridgeModule : Module() {
   private val main = Handler(Looper.getMainLooper())
   private var service: Messenger? = null
   private var connecting = false
+  private var bound = false
+  private var bindingEpoch = 0
+  private var granted: Uri? = null
+  private var grantContext: Context? = null
+  private var serviceContext: Context? = null
+  private var destroyed = false
   private val waiting = ArrayList<(Messenger?) -> Unit>()
 
-  private val reply = Messenger(Handler(Looper.getMainLooper()) { msg ->
+  private val reply = Messenger(Handler(Looper.getMainLooper()) callback@{ msg ->
+    if (destroyed) return@callback true
     if (msg.what == WHAT_PRESENT_STATE) {
       // Sunum durumu: state = "transferring" | "opened" | "failed" (eski T-Bridge bunu göndermez).
       val st = msg.data.getString("state") ?: ""
+      if (st == "opened" || st == "failed") revokeGrant()
       sendEvent(
         "onBridgeResult",
         mapOf(
@@ -54,6 +64,7 @@ class TDeskBridgeModule : Module() {
         ),
       )
     } else if (msg.what == WHAT_RESULT) {
+      if (!msg.data.getBoolean("ok")) revokeGrant()
       sendEvent(
         "onBridgeResult",
         mapOf(
@@ -68,25 +79,56 @@ class TDeskBridgeModule : Module() {
 
   private val conn = object : ServiceConnection {
     override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+      if (destroyed || !bound) return
       service = Messenger(binder)
       connecting = false
       flush(service)
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
-      service = null
+      reportLostPresentation()
+      unbind()
+      connecting = false
+      revokeGrant()
+      flush(null)
     }
 
     override fun onNullBinding(name: ComponentName?) {
+      unbind()
       connecting = false
       flush(null)
     }
 
     override fun onBindingDied(name: ComponentName?) {
-      service = null
+      reportLostPresentation()
+      unbind()
       connecting = false
       flush(null)
     }
+  }
+
+  private fun reportLostPresentation() {
+    if (granted != null && !destroyed) {
+      sendEvent("onBridgeResult", mapOf("ok" to false, "connected" to false, "state" to "failed", "message" to ""))
+    }
+  }
+
+  private fun revokeGrant() {
+    granted?.let { uri -> runCatching {
+      if (Build.VERSION.SDK_INT >= 26) grantContext?.revokeUriPermission(BRIDGE_PKG, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      else grantContext?.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    } }
+    granted = null
+    grantContext = null
+  }
+
+  private fun unbind() {
+    if (bound) runCatching { serviceContext?.unbindService(conn) }
+    bound = false
+    serviceContext = null
+    service = null
+    bindingEpoch++
+    revokeGrant()
   }
 
   private fun flush(m: Messenger?) {
@@ -97,12 +139,15 @@ class TDeskBridgeModule : Module() {
 
   /** Servise bağlanır (gerekirse); 4 sn içinde bağlanamazsa null döner. */
   private fun withService(cb: (Messenger?) -> Unit) {
+    check(Looper.myLooper() == Looper.getMainLooper())
+    if (destroyed) { cb(null); return }
     service?.let { cb(it); return }
     waiting.add(cb)
     if (connecting) return
     connecting = true
+    val context = ctx.applicationContext
     val ok = try {
-      ctx.bindService(Intent().setComponent(ComponentName(BRIDGE_PKG, BRIDGE_SERVICE)), conn, Context.BIND_AUTO_CREATE)
+      context.bindService(Intent().setComponent(ComponentName(BRIDGE_PKG, BRIDGE_SERVICE)), conn, Context.BIND_AUTO_CREATE)
     } catch (_: SecurityException) {
       false
     }
@@ -111,8 +156,12 @@ class TDeskBridgeModule : Module() {
       flush(null)
       return
     }
+    bound = true
+    serviceContext = context
+    val epoch = ++bindingEpoch
     main.postDelayed({
-      if (service == null && connecting) {
+      if (epoch == bindingEpoch && service == null && connecting) {
+        unbind()
         connecting = false
         flush(null)
       }
@@ -124,6 +173,12 @@ class TDeskBridgeModule : Module() {
     true
   } catch (_: PackageManager.NameNotFoundException) {
     false
+  }
+
+  private fun bridgeStatus(): String {
+    if (!isInstalled(BRIDGE_PKG)) return "missing"
+    val intent = Intent().setComponent(ComponentName(BRIDGE_PKG, BRIDGE_SERVICE))
+    return if (ctx.packageManager.resolveService(intent, 0) == null) "outdated" else "ready"
   }
 
   /** file:// -> expo-file-system FileProvider'ı ile content://; content:// olduğu gibi kalır. */
@@ -146,6 +201,7 @@ class TDeskBridgeModule : Module() {
     Events("onBridgeResult")
 
     Function("isPackageInstalled") { pkg: String -> isInstalled(pkg) }
+    Function("getBridgeStatus") { bridgeStatus() }
 
     // Açık ACTION_SEND: T-Bridge'in "Bilgisayara gönder" paylaşım hedefi. Sonuç T-Bridge'de toast olarak görünür.
     AsyncFunction("sendToBridge") { uri: String ->
@@ -159,12 +215,20 @@ class TDeskBridgeModule : Module() {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
       }
       (appContext.currentActivity ?: ctx).startActivity(i)
-    }
+    }.runOnQueue(Queues.MAIN)
 
     // Sunum: dosyayı T-Bridge'e verir (present=true); sonuç "onBridgeResult" olayı olarak gelir.
     AsyncFunction("present") { uri: String, promise: Promise ->
       if (!isInstalled(BRIDGE_PKG)) {
         promise.reject("ERR_NO_BRIDGE", "T-Bridge kurulu değil", null)
+        return@AsyncFunction
+      }
+      if (bridgeStatus() == "outdated") {
+        promise.reject("ERR_BRIDGE_OLD", "T-Bridge sürümünü güncelleyin", null)
+        return@AsyncFunction
+      }
+      if (granted != null) {
+        promise.reject("ERR_BRIDGE_BUSY", "Önceki aktarımın bitmesini bekleyin", null)
         return@AsyncFunction
       }
       val content = try {
@@ -175,8 +239,11 @@ class TDeskBridgeModule : Module() {
       }
       // T-Bridge'in dosyayı okuyabilmesi için bu URI'ye okuma izni (sağlayıcı grantUriPermissions=true).
       ctx.grantUriPermission(BRIDGE_PKG, content, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      granted = content
+      grantContext = ctx.applicationContext
       withService { s ->
         if (s == null) {
+          revokeGrant()
           promise.reject("ERR_BRIDGE_UNAVAILABLE", "T-Bridge'e bağlanılamadı", null)
           return@withService
         }
@@ -190,10 +257,11 @@ class TDeskBridgeModule : Module() {
           s.send(m)
           promise.resolve(null)
         } catch (e: Exception) {
+          revokeGrant()
           promise.reject("ERR_BRIDGE_SEND", "Gönderilemedi", e)
         }
       }
-    }
+    }.runOnQueue(Queues.MAIN)
 
     // Uzaktan tuş: "next" | "prev" | "end"
     AsyncFunction("presentKey") { key: String, promise: Promise ->
@@ -216,12 +284,16 @@ class TDeskBridgeModule : Module() {
           promise.reject("ERR_BRIDGE_SEND", "Gönderilemedi", e)
         }
       }
-    }
+    }.runOnQueue(Queues.MAIN)
 
     OnDestroy {
-      if (service != null || connecting) runCatching { ctx.unbindService(conn) }
-      service = null
-      connecting = false
+      main.post {
+        destroyed = true
+        unbind()
+        connecting = false
+        waiting.clear()
+        main.removeCallbacksAndMessages(null)
+      }
     }
   }
 }

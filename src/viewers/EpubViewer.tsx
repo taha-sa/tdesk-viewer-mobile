@@ -165,7 +165,11 @@ export const EpubViewer: React.FC<EpubViewerProps> = ({ file, appTheme = 'emeral
         setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      zipRef.current = null;
+      cacheRef.current.clear();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.uri, file.base64, reloadKey]);
 

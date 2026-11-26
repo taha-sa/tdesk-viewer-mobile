@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Switch, Linking, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Switch, Linking, Alert, Platform, AppState } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
 import { AppThemeMode } from '../types';
@@ -40,6 +40,32 @@ interface Props {
   appTheme: AppThemeMode;
 }
 
+interface AboutRowProps {
+  colors: (typeof Colors)['dark'];
+  icon: string;
+  title: string;
+  sub?: string;
+  onPress: () => void;
+  a11y?: string;
+  first?: boolean;
+}
+
+const AboutRow: React.FC<AboutRowProps> = ({ colors: c, icon, title, sub, onPress, a11y, first }) => (
+  <TouchableOpacity
+    style={[styles.row, !first && { borderTopWidth: 1, borderTopColor: c.border }]}
+    onPress={onPress}
+    accessibilityRole="button"
+    accessibilityLabel={a11y || title}
+  >
+    <Ionicons name={icon as never} size={20} color={c.primary} />
+    <View style={styles.flex}>
+      <Text style={[styles.title, { color: c.text }]}>{title}</Text>
+      {sub ? <Text style={[styles.sub, { color: c.textSecondary }]}>{sub}</Text> : null}
+    </View>
+    <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+  </TouchableOpacity>
+);
+
 /** Ayarlar > Hakkında: sürüm/OTA, T-Suite ailesi, hata raporu, yasal metinler. */
 export const AboutSection: React.FC<Props> = ({ appTheme }) => {
   const c = Colors[appTheme] || Colors.dark;
@@ -51,8 +77,10 @@ export const AboutSection: React.FC<Props> = ({ appTheme }) => {
   useEffect(() => {
     let alive = true;
     void loadAutoReport().then(v => { if (alive) setAuto(v); });
-    try { setBridgeInstalled(isBridgeInstalled()); } catch { setBridgeInstalled(false); }
-    return () => { alive = false; };
+    const refresh = () => { try { setBridgeInstalled(isBridgeInstalled()); } catch { setBridgeInstalled(false); } };
+    refresh();
+    const listener = AppState.addEventListener('change', state => { if (state === 'active' && alive) refresh(); });
+    return () => { alive = false; listener.remove(); };
   }, []);
 
   const open = async (url: string, what: string) => {
@@ -70,24 +98,6 @@ export const AboutSection: React.FC<Props> = ({ appTheme }) => {
   const ota = otaId();
   const card = { backgroundColor: c.card, borderColor: c.cardBorder };
   const divider = { borderTopWidth: 1, borderTopColor: c.border };
-
-  const Row: React.FC<{
-    icon: string; title: string; sub?: string; onPress: () => void; a11y?: string; first?: boolean;
-  }> = ({ icon, title, sub, onPress, a11y, first }) => (
-    <TouchableOpacity
-      style={[styles.row, !first && divider]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={a11y || title}
-    >
-      <Ionicons name={icon as never} size={20} color={c.primary} />
-      <View style={styles.flex}>
-        <Text style={[styles.title, { color: c.text }]}>{title}</Text>
-        {sub ? <Text style={[styles.sub, { color: c.textSecondary }]}>{sub}</Text> : null}
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-    </TouchableOpacity>
-  );
 
   return (
     <View>
@@ -174,7 +184,8 @@ export const AboutSection: React.FC<Props> = ({ appTheme }) => {
             accessibilityState={{ checked: auto }}
           />
         </View>
-        <Row
+        <AboutRow
+          colors={c}
           icon="bug-outline"
           title={t('aboutApp.reportBug')}
           sub={t('aboutApp.reportBugHint')}
@@ -184,10 +195,10 @@ export const AboutSection: React.FC<Props> = ({ appTheme }) => {
 
       <Text style={[styles.section, { color: c.primary }]}>{t('aboutApp.sectionLegal')}</Text>
       <View style={[styles.group, card]}>
-        <Row first icon="document-text-outline" title={t('aboutApp.privacy')} onPress={() => setLegal('privacy')} />
-        <Row icon="ribbon-outline" title={t('aboutApp.license')} onPress={() => setLegal('license')} />
-        <Row icon="code-slash-outline" title={t('aboutApp.oss')} onPress={() => setLegal('oss')} />
-        <Row icon="information-circle-outline" title={t('aboutApp.disclaimer')} onPress={() => setLegal('disclaimer')} />
+        <AboutRow colors={c} first icon="document-text-outline" title={t('aboutApp.privacy')} onPress={() => setLegal('privacy')} />
+        <AboutRow colors={c} icon="ribbon-outline" title={t('aboutApp.license')} onPress={() => setLegal('license')} />
+        <AboutRow colors={c} icon="code-slash-outline" title={t('aboutApp.oss')} onPress={() => setLegal('oss')} />
+        <AboutRow colors={c} icon="information-circle-outline" title={t('aboutApp.disclaimer')} onPress={() => setLegal('disclaimer')} />
       </View>
 
       <CrashReportSheet record={report} appTheme={appTheme} manual onClose={() => setReport(null)} />

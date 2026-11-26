@@ -62,6 +62,8 @@ export function onBridgeResult(cb: (r: BridgeResult) => void): { remove(): void 
 function friendly(e: any): string {
   const code = String(e?.code || '');
   if (code === 'ERR_NO_BRIDGE') return t('bridge.err.notInstalled');
+  if (code === 'ERR_BRIDGE_OLD') return t('bridge.err.outdated');
+  if (code === 'ERR_BRIDGE_BUSY') return t('bridge.err.busy');
   if (code === 'ERR_BRIDGE_UNAVAILABLE') return t('bridge.err.unavailable');
   return t('bridge.err.generic');
 }

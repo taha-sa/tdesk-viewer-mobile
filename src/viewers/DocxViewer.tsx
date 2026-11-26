@@ -1311,7 +1311,7 @@ ol.notes { font-size: 0.9em; color: ${c.textSecondary}; }
             geolocationEnabled={false}
             setSupportMultipleWindows={false}
             onShouldStartLoadWithRequest={handleShouldStart}
-            accessibilityLabel={`Word belgesi: ${file.name}`}
+            accessibilityLabel={t('docx.a11y', { name: file.name })}
           />
         </>
       )}

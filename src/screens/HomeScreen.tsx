@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { FileInfo, AppThemeMode, FileType } from '../types';
 import { Colors } from '../theme/colors';
@@ -21,6 +21,8 @@ interface HomeScreenProps {
 
 type TabType = FileType | 'all' | 'favorites';
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const homeKeyExtractor = (f: FileInfo) => f.id;
 
 const getCategoryTabs = (): { id: TabType; label: string; icon: IconName }[] => [
   { id: 'all', label: t('common.all'), icon: 'apps-outline' },
@@ -92,8 +94,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
 
   const shown = useMemo(() => filtered.slice(0, RECENT_LIMIT), [filtered]);
   const hasAny = files.length > 0;
-  const selectedLabel = getCategoryTabs().find((t) => t.id === selectedTab)?.label ?? '';
-  const sectionTitle = selectedTab === 'all' ? 'Son Dosyalar' : selectedTab === 'favorites' ? t('common.favorites') : selectedLabel;
+  const categoryTabs = getCategoryTabs();
+  const selectedLabel = categoryTabs.find((tab) => tab.id === selectedTab)?.label ?? '';
+  const sectionTitle = selectedTab === 'all' ? t('home.recentFiles') : selectedTab === 'favorites' ? t('common.favorites') : selectedLabel;
 
   const goToBrowser = useCallback(() => {
     onNavigateToBrowser(selectedTab !== 'all' && selectedTab !== 'favorites' ? selectedTab : undefined);
@@ -140,7 +143,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
       {hasAny ? (
         <View style={styles.tabSection}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-            {getCategoryTabs().map((tab) => {
+            {categoryTabs.map((tab) => {
               const isSelected = selectedTab === tab.id;
               const count = tabCounts[tab.id] ?? 0;
               const label = count > 0 ? `${tab.label} (${count})` : tab.label;
@@ -158,7 +161,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
                   hitSlop={{ top: 6, bottom: 6, left: 2, right: 2 }}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={`Filtre: ${label}`}
+                  accessibilityLabel={t('home.filterA11y', { label })}
                   accessibilityState={{ selected: isSelected }}
                 >
                   <Ionicons name={tab.icon} size={14} color={isSelected ? currentColors.primary : currentColors.textSecondary} />
@@ -182,7 +185,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
           <Text style={[styles.listTitle, { color: currentColors.text }]} accessibilityRole="header">
             {sectionTitle}
           </Text>
-          <Text style={[styles.fileCountText, { color: currentColors.textSecondary }]}>{filtered.length} dosya</Text>
+          <Text style={[styles.fileCountText, { color: currentColors.textSecondary }]}>{t('archive.fileCount', { count: filtered.length })}</Text>
         </View>
       ) : null}
     </View>
@@ -241,11 +244,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ appTheme, onOpenFile, on
       />
       <FlatList
         data={shown}
-        keyExtractor={(f) => f.id}
+        keyExtractor={homeKeyExtractor}
         renderItem={renderItem}
         style={styles.scroll}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={listHeader}
         ListEmptyComponent={listEmpty}
         ListFooterComponent={listFooter}
