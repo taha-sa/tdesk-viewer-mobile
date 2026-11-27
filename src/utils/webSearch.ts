@@ -14,11 +14,37 @@ const LIB = `
 (function(){
   var S = window.__tdS = window.__tdS || { marks: [], cur: -1 };
   function post(){ try { window.ReactNativeWebView.postMessage(JSON.stringify({ t: 'tdsearch', count: S.marks.length, index: S.cur })); } catch(e){} }
-  function lc(s){ try { return s.toLocaleLowerCase('tr-TR'); } catch(e){ return s.toLowerCase(); } }
+  function foldMap(str){
+    var folded = '', key = '', idx = [];
+    for (var i = 0; i < str.length; i++) {
+      var code = str.charCodeAt(i);
+      if (code === 0x00ad) continue;
+      if (code === 0x0307) {
+        if (folded.length && folded.charAt(folded.length - 1) === 'I') folded = folded.slice(0, -1) + 'i';
+        continue;
+      }
+      if (code === 0x0049) { folded += 'I'; key += 'i'; idx.push(i); }
+      else if (code === 0x0130) { folded += 'i'; key += 'i'; idx.push(i); }
+      else if (code === 0x0131) { folded += '\\u0131'; key += 'i'; idx.push(i); }
+      else {
+        var lo = str.charAt(i).toLowerCase();
+        for (var j = 0; j < lo.length; j++) {
+          var lc = lo.charCodeAt(j);
+          if (lc === 0x0307) continue;
+          var ch = lo.charAt(j);
+          folded += ch; key += (lc === 0x0131 ? 'i' : ch); idx.push(i);
+        }
+      }
+    }
+    return { folded: folded, key: key, idx: idx };
+  }
+  function compat(a, b){
+    return a === b || (a === 'I' && (b === 'i' || b === '\\u0131')) || (b === 'I' && (a === 'i' || a === '\\u0131'));
+  }
   function ensureStyle(){
     if (document.getElementById('tdsearch-style')) return;
     var st = document.createElement('style'); st.id = 'tdsearch-style';
-    st.textContent = 'mark.tdm{background:#fde047;color:#111;border-radius:2px;padding:0}mark.tdm.tdc{background:#fb923c;outline:2px solid #ea580c}';
+    st.textContent = 'mark.tdm{background:#fef08a;color:#111;border-radius:3px;padding:0 1px}mark.tdm.tdc{background:#fb923c;color:#111;box-shadow:0 0 0 1.5px #ea580c}';
     (document.head || document.documentElement).appendChild(st);
   }
   function clear(){
@@ -34,24 +60,40 @@ const LIB = `
     clear();
     if (!q) { post(); return; }
     ensureStyle();
-    var ql = lc(q);
+    var qm = foldMap(q);
+    var qk = qm.key, qf = qm.folded, qlen = qk.length;
+    if (!qlen) { post(); return; }
     var nodes = [];
     var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false), n;
     while ((n = w.nextNode())) {
       var tag = n.parentNode && n.parentNode.nodeName;
       if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'MARK') continue;
-      if (n.data && n.data.length >= ql.length) nodes.push(n);
+      if (n.data && n.data.length >= qlen) nodes.push(n);
     }
     for (var i = 0; i < nodes.length; i++) {
-      var node = nodes[i], d = node.data, l = lc(d);
-      if (l.length !== d.length) l = d.toLowerCase();
-      if (l.length !== d.length) continue;
-      var pos = [], at = l.indexOf(ql);
-      while (at >= 0) { pos.push(at); at = l.indexOf(ql, at + ql.length); }
+      var node = nodes[i], d = node.data, dm = foldMap(d);
+      if (dm.key.length < qlen) continue;
+      var ranges = [], at = dm.key.indexOf(qk);
+      while (at >= 0) {
+        var ok = true;
+        for (var c = 0; c < qlen; c++) {
+          if (!compat(dm.folded.charAt(at + c), qf.charAt(c))) { ok = false; break; }
+        }
+        if (ok) {
+          var s0 = dm.idx[at];
+          var e0 = dm.idx[at + qlen - 1] + 1;
+          while (e0 < d.length && d.charCodeAt(e0) === 0x0307) e0++;
+          ranges.push([s0, e0]);
+          at = dm.key.indexOf(qk, at + qlen);
+        } else {
+          at = dm.key.indexOf(qk, at + 1);
+        }
+      }
       var created = [];
-      for (var k = pos.length - 1; k >= 0; k--) {
-        var mid = node.splitText(pos[k]);
-        mid.splitText(ql.length);
+      for (var k = ranges.length - 1; k >= 0; k--) {
+        var s0 = ranges[k][0], len0 = ranges[k][1] - s0;
+        var mid = node.splitText(s0);
+        mid.splitText(len0);
         var mk = document.createElement('mark'); mk.className = 'tdm';
         mid.parentNode.replaceChild(mk, mid); mk.appendChild(mid);
         created.push(mk);

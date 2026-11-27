@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "node scripts/test-scrubber.js && node scripts/check-native-archive.js",
+    "test": "node scripts/test-scrubber.js && node scripts/test-pdf-search.js && node scripts/check-native-archive.js",
     "licenses": "node scripts/gen-licenses.js",
     "check-i18n": "node scripts/check-i18n.js"
   },

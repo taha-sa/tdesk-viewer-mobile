@@ -1,13 +1,14 @@
 html,body{margin:0;padding:0;-webkit-text-size-adjust:none}
 body{font-family:sans-serif;overflow-x:auto}
 #pages{padding:8px 0;min-width:100%;box-sizing:border-box}
-.page{position:relative;margin:0 auto 8px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.35);overflow:hidden}
-.page canvas{display:block;position:absolute;left:0;top:0}
+.page{position:relative;margin:0 auto 8px auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.35);overflow:hidden;isolation:isolate}
+.page canvas{display:block;position:absolute;left:0;top:0;z-index:0}
+.highlightLayer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1;mix-blend-mode:multiply}
+.highlightLayer .hl{position:absolute;background:rgba(255,232,76,.92);border-radius:2px;transform-origin:0 0;box-sizing:border-box}
+.highlightLayer .hl.hl-cur{background:rgba(255,156,56,.95);box-shadow:0 0 0 1.5px rgba(234,88,12,.95)}
 .textLayer{position:absolute;text-align:initial;inset:0;overflow:hidden;line-height:1;-webkit-text-size-adjust:none;text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;z-index:2}
 .textLayer :is(span,br){color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
 .textLayer span.markedContent{top:0;height:0}
 .textLayer br::selection{background:transparent}
 .textLayer ::selection{background:rgba(59,130,246,.45)}
-mark.tdh{background:rgba(253,224,71,.6);color:transparent;border-radius:2px;padding:0}
-mark.tdh.tdc{background:rgba(249,115,22,.7);outline:2px solid rgba(234,88,12,.9)}
 #msg{position:fixed;left:0;right:0;top:40%;text-align:center;font:15px sans-serif;opacity:.7}

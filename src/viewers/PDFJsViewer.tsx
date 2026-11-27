@@ -124,14 +124,20 @@ export const PDFJsViewer: React.FC<Props> = ({ file, appTheme = 'emerald', onFal
     }
   }, [file.uri, run, waitAck]);
 
-  // ---- Arama (gecikmeli)
+  // ---- Arama (hizli gecikme; temizlemede aninda)
   useEffect(() => {
     if (status !== 'ready') return;
     const q = searchOpen ? searchText.trim() : '';
+    if (!q) {
+      run('window.__pdf.clear()');
+      setSearchCount(0);
+      setSearchIndex(-1);
+      setScanPct(null);
+      return;
+    }
     const h = setTimeout(() => {
-      if (q) run(`window.__pdf.search(${JSON.stringify(q)})`);
-      else { run('window.__pdf.clear()'); setSearchCount(0); setSearchIndex(-1); setScanPct(null); }
-    }, 350);
+      run(`window.__pdf.search(${JSON.stringify(q)})`);
+    }, 150);
     return () => clearTimeout(h);
   }, [searchOpen, searchText, status, run]);
 
